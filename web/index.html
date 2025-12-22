@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- Google Sign-In Client ID -->
+  <meta name="google-signin-client_id" content="923647582640-8at34bg5s19v5ukav5urkrlqket81qap.apps.googleusercontent.com">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="gym">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.ico"/>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyD0yU1pR14CELHcCY032UszE-qCJwQQmOI",
+    authDomain: "mexican-bulking.firebaseapp.com",
+    projectId: "mexican-bulking",
+    storageBucket: "mexican-bulking.firebasestorage.app",
+    messagingSenderId: "589672531910",
+    appId: "1:589672531910:web:8aa4d474b4abf7751a94c7",
+    measurementId: "G-MX3MK6Y9YJ"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
+
+  <title>gym</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+
+  <!-- Service Worker para notificaciones push -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registrado:', registration.scope);
+          })
+          .catch((error) => {
+            console.error('❌ Error registrando Service Worker:', error);
+          });
+      });
+    }
+  </script>
+
+  <!-- PWA Install Prompt -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Verificar si ya se mostró el prompt antes
+      const hasSeenPrompt = localStorage.getItem('pwa-install-prompt-seen');
+      if (hasSeenPrompt === 'true') {
+        return; // No mostrar si ya lo vio
+      }
+
+      // Detectar sistema operativo
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIOS = /iphone|ipad|ipod/i.test(userAgent);
+      const isAndroid = /android/i.test(userAgent);
+
+      // Detectar si ya está instalado
+      const isInStandaloneMode =
+        ("standalone" in window.navigator && window.navigator.standalone) ||
+        window.matchMedia("(display-mode: standalone)").matches;
+
+      // Solo mostrar si NO está instalado y está en móvil
+      if ((isIOS || isAndroid) && !isInStandaloneMode) {
+
+        // Esperar a que Flutter cargue y verificar si NO está autenticado
+        setTimeout(() => {
+          // Verificar si hay sesión activa (Firebase Auth)
+          // Si no hay usuario autenticado, mostrar el prompt
+          const checkAuthAndShow = () => {
+            // Verificar localStorage de Firebase
+            const firebaseKeys = Object.keys(localStorage).filter(key =>
+              key.includes('firebase:authUser') ||
+              key.includes('firebase:host')
+            );
+
+            const hasActiveSession = firebaseKeys.some(key => {
+              const value = localStorage.getItem(key);
+              return value && value !== 'null' && value.includes('uid');
+            });
+
+            // Solo mostrar en landing page (sin sesión activa)
+            if (!hasActiveSession) {
+              showInstallPrompt(isIOS);
+            }
+          };
+
+          checkAuthAndShow();
+        }, 1500);
+      }
+
+      function showInstallPrompt(isIOS) {
+        // Crear overlay
+        const overlay = document.createElement("div");
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.75);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          animation: fadeIn 0.3s ease-in;
+        `;
+
+        // Contenedor
+        const box = document.createElement("div");
+        box.style.cssText = `
+          width: 85%;
+          max-width: 420px;
+          background: #ffffff;
+          padding: 28px 24px;
+          border-radius: 20px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+          color: #1a1a1a;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+          animation: slideUp 0.4s ease-out;
+        `;
+
+        if (isIOS) {
+          // Prompt para iOS
+          box.innerHTML = `
+            <div style="margin-bottom: 16px;">
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="14" fill="#007AFF"/>
+                <path d="M32 16v24M32 16l-8 8M32 16l8 8" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="16" y="40" width="32" height="8" rx="2" fill="white"/>
+              </svg>
+            </div>
+            <h2 style="margin: 16px 0 0 0; font-size: 24px; font-weight: 700; color: #000;">
+              Instala Mexican Bulking
+            </h2>
+            <p style="font-size: 16px; line-height: 1.5; margin: 14px 0 20px 0; color: #555;">
+              Para la mejor experiencia, instala la app en tu iPhone.<br><br>
+              Toca el botón <strong>Compartir</strong>
+              <svg width="18" height="24" viewBox="0 0 18 24" fill="none" style="display: inline-block; vertical-align: middle; margin: 0 4px;">
+                <path d="M9 3v12M9 3L5 7M9 3l4 4M3 18h12v3H3z" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              y luego <strong>"Agregar a Inicio"</strong>.
+            </p>
+            <button id="closePrompt" style="
+              margin-top: 8px;
+              background: #000;
+              color: white;
+              padding: 14px 32px;
+              border-radius: 12px;
+              font-size: 17px;
+              font-weight: 600;
+              border: none;
+              cursor: pointer;
+              width: 100%;
+              transition: all 0.2s;
+            ">
+              Entendido
+            </button>
+          `;
+        } else {
+          // Prompt para Android
+          box.innerHTML = `
+            <div style="margin-bottom: 16px;">
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="14" fill="#4CAF50"/>
+                <path d="M32 16v24M32 16l-8 8M32 16l8 8" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="16" y="40" width="32" height="8" rx="2" fill="white"/>
+              </svg>
+            </div>
+            <h2 style="margin: 16px 0 0 0; font-size: 24px; font-weight: 700; color: #000;">
+              Instala Mexican Bulking
+            </h2>
+            <p style="font-size: 16px; line-height: 1.5; margin: 14px 0 20px 0; color: #555;">
+              Instala la app para acceso rápido y una mejor experiencia.<br><br>
+              Toca el menú <strong>⋮</strong> (tres puntos) y selecciona <strong>"Agregar a pantalla de inicio"</strong> o <strong>"Instalar app"</strong>.
+            </p>
+            <button id="closePrompt" style="
+              margin-top: 8px;
+              background: #4CAF50;
+              color: white;
+              padding: 14px 32px;
+              border-radius: 12px;
+              font-size: 17px;
+              font-weight: 600;
+              border: none;
+              cursor: pointer;
+              width: 100%;
+              transition: all 0.2s;
+            ">
+              Entendido
+            </button>
+          `;
+        }
+
+        // Agregar animaciones CSS
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px) scale(0.95);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+          #closePrompt:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+          }
+          #closePrompt:active {
+            transform: scale(0.98);
+          }
+        `;
+        document.head.appendChild(style);
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        // Event listener para cerrar
+        document.getElementById("closePrompt").addEventListener("click", () => {
+          overlay.style.animation = 'fadeOut 0.2s ease-out';
+          setTimeout(() => {
+            overlay.remove();
+          }, 200);
+
+          // Marcar como visto en localStorage
+          localStorage.setItem('pwa-install-prompt-seen', 'true');
+        });
+
+        // Agregar animación de salida
+        const fadeOutStyle = document.createElement('style');
+        fadeOutStyle.textContent = `
+          @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+          }
+        `;
+        document.head.appendChild(fadeOutStyle);
+      }
+    });
+  </script>
+</body>
+</html>

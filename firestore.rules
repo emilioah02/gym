@@ -1,0 +1,320 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    // Verifica si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Verifica si el usuario es el dueño del documento
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Obtiene el email del usuario autenticado
+    function getUserEmail() {
+      return request.auth.token.email;
+    }
+
+    // Obtiene el rol del usuario autenticado desde la colección users
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol;
+    }
+
+    // Lista de administradores absolutos (pueden gestionar todo, incluyendo otros entrenadores)
+    function isAbsoluteAdmin() {
+      return isAuthenticated() && getUserEmail() in [
+        'emilioah02@gmail.com',
+        'diegopeniche.galindo25@gmail.com'
+      ];
+    }
+
+    // Verifica si el usuario es entrenador (con permisos limitados)
+    function isTrainer() {
+      return isAuthenticated() && getUserRole() == 'entrenador';
+    }
+
+    // Verifica si el usuario tiene permisos de entrenador o admin absoluto
+    function hasTrainerPermissions() {
+      return isAuthenticated() && (isTrainer() || isAbsoluteAdmin());
+    }
+
+    // ========================================
+    // USERS COLLECTION
+    // ========================================
+
+    match /users/{userId} {
+      // Los entrenadores y admins pueden leer todos los usuarios (para la lista de clientes)
+      // Los usuarios normales solo pueden leer su propia información
+      allow read: if isAuthenticated() && (isOwner(userId) || hasTrainerPermissions());
+
+      // Solo el dueño puede crear su propia información (durante el registro)
+      // EXCEPCIÓN: Los admins absolutos pueden crear cualquier usuario (incluyendo entrenadores)
+      allow create: if isOwner(userId) ||
+                      (isAbsoluteAdmin() && request.resource.data.rol in ['cliente', 'entrenador', 'admin']);
+
+      // El dueño puede actualizar su propia información
+      // Los entrenadores pueden actualizar información de clientes (asignar rutinas, etc.)
+      // Los admins absolutos pueden actualizar cualquier usuario
+      // RESTRICCIÓN: Los entrenadores regulares NO pueden modificar otros entrenadores
+      allow update: if isOwner(userId) ||
+                      (hasTrainerPermissions() &&
+                        (get(/databases/$(database)/documents/users/$(userId)).data.rol == 'cliente' || isAbsoluteAdmin()));
+
+      // Solo los admins absolutos pueden eliminar usuarios
+      allow delete: if isAbsoluteAdmin();
+    }
+
+    // ========================================
+    // ROUTINES COLLECTION
+    // ========================================
+
+    match /routines/{routineId} {
+      // Cualquier usuario autenticado puede leer rutinas
+      allow read: if isAuthenticated();
+
+      // Solo entrenadores y admins pueden crear rutinas
+      allow create: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden actualizar rutinas
+      allow update: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden eliminar rutinas
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // MACHINES COLLECTION
+    // ========================================
+
+    match /machines/{machineId} {
+      // Cualquier usuario autenticado puede leer máquinas
+      allow read: if isAuthenticated();
+
+      // Solo entrenadores y admins pueden crear máquinas
+      allow create: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden actualizar máquinas
+      allow update: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden eliminar máquinas
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // WEEKLY ROUTINES COLLECTION
+    // ========================================
+
+    match /weekly_routines/{weeklyRoutineId} {
+      // Los clientes pueden leer sus propias rutinas semanales
+      // Los entrenadores pueden leer todas las rutinas semanales
+      allow read: if isAuthenticated() &&
+                     (resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Solo los entrenadores pueden crear rutinas semanales
+      allow create: if hasTrainerPermissions();
+
+      // Solo los entrenadores pueden actualizar rutinas semanales
+      allow update: if hasTrainerPermissions();
+
+      // Solo los entrenadores pueden eliminar rutinas semanales
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // HISTORY COLLECTION
+    // ========================================
+
+    match /history/{historyId} {
+      // Los clientes pueden leer su propio historial
+      // Los entrenadores pueden leer todo el historial
+      allow read: if isAuthenticated() &&
+                     (resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Los clientes pueden crear su propio historial de entrenamientos
+      // Los entrenadores pueden crear cualquier historial
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Solo los entrenadores pueden actualizar el historial
+      allow update: if hasTrainerPermissions();
+
+      // Solo los entrenadores pueden eliminar el historial
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // ROUTINE REQUESTS COLLECTION
+    // ========================================
+
+    match /routine_requests/{requestId} {
+      // Los clientes pueden leer sus propias solicitudes
+      // Los entrenadores pueden leer todas las solicitudes
+      allow read: if isAuthenticated() &&
+                     (resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Los clientes pueden crear solicitudes con su propio ID
+      // Los entrenadores también pueden crear solicitudes
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Solo los entrenadores pueden actualizar solicitudes (cambiar estado, etc.)
+      allow update: if hasTrainerPermissions();
+
+      // Los clientes pueden eliminar sus propias solicitudes pendientes
+      // Los entrenadores pueden eliminar cualquier solicitud
+      allow delete: if isAuthenticated() &&
+                       (resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+    }
+
+    // ========================================
+    // STORE ORDERS COLLECTION
+    // ========================================
+
+    match /store_orders/{orderId} {
+      // Los clientes pueden leer sus propios pedidos
+      // Los entrenadores pueden leer todos los pedidos
+      allow read: if isAuthenticated() &&
+                     (resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Los clientes pueden crear pedidos con su propio ID
+      // Los entrenadores también pueden crear pedidos
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.clienteId == request.auth.uid || hasTrainerPermissions());
+
+      // Solo los entrenadores pueden actualizar pedidos (cambiar estado, etc.)
+      // Los clientes pueden actualizar sus pedidos solo para marcar como entregado
+      allow update: if hasTrainerPermissions() ||
+                       (isAuthenticated() &&
+                        resource.data.clienteId == request.auth.uid &&
+                        request.resource.data.estado == 'entregado');
+
+      // Solo los entrenadores pueden eliminar pedidos
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // HELP NOTIFICATIONS COLLECTION
+    // ========================================
+
+    match /help_notifications/{notificationId} {
+      // Solo los entrenadores pueden leer notificaciones
+      allow read: if hasTrainerPermissions();
+
+      // Los clientes pueden crear notificaciones de ayuda
+      // Los entrenadores también pueden crear notificaciones
+      allow create: if isAuthenticated();
+
+      // Solo los entrenadores pueden actualizar notificaciones (marcar como leída)
+      allow update: if hasTrainerPermissions();
+
+      // Solo los entrenadores pueden eliminar notificaciones
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // NOTIFICATIONS COLLECTION (General)
+    // ========================================
+
+    match /notifications/{notificationId} {
+      // Los entrenadores pueden leer todas las notificaciones dirigidas a ellos
+      // Los clientes pueden leer sus propias notificaciones (donde clienteId == su UID)
+      // También permitir lectura si el documento no tiene clienteId (notificaciones globales)
+      allow read: if isAuthenticated() &&
+                     (hasTrainerPermissions() ||
+                      resource.data.clienteId == request.auth.uid ||
+                      !('clienteId' in resource.data));
+
+      // Los clientes pueden crear notificaciones de ayuda
+      // Los entrenadores pueden crear cualquier tipo de notificación
+      allow create: if isAuthenticated();
+
+      // Los entrenadores pueden actualizar notificaciones (marcar como leída)
+      // Los clientes pueden actualizar sus propias notificaciones (marcar como leída)
+      allow update: if isAuthenticated() &&
+                       (hasTrainerPermissions() ||
+                        resource.data.clienteId == request.auth.uid ||
+                        !('clienteId' in resource.data));
+
+      // Solo los entrenadores pueden eliminar notificaciones
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // PRODUCTS COLLECTION
+    // ========================================
+
+    match /products/{productId} {
+      // Cualquier usuario autenticado puede leer productos
+      allow read: if isAuthenticated();
+
+      // Solo entrenadores y admins pueden crear productos
+      allow create: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden actualizar productos
+      allow update: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden eliminar productos
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // ANNOUNCEMENTS COLLECTION
+    // ========================================
+
+    match /announcements/{announcementId} {
+      // Cualquier usuario autenticado puede leer anuncios
+      allow read: if isAuthenticated();
+
+      // Solo entrenadores y admins pueden crear anuncios
+      allow create: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden actualizar anuncios
+      allow update: if hasTrainerPermissions();
+
+      // Solo entrenadores y admins pueden eliminar anuncios
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // CLIENT NOTIFICATION STATUS COLLECTION
+    // ========================================
+
+    match /client_notification_status/{statusId} {
+      // IMPORTANTE: Para queries, usar request.auth.uid en vez de resource.data
+      // Los clientes pueden leer sus propios estados de notificación
+      // Los entrenadores pueden leer todos los estados
+      allow read: if isAuthenticated();
+
+      // Los clientes pueden crear sus propios estados de notificación
+      // Los entrenadores también pueden crear estados
+      allow create: if isAuthenticated() &&
+                       (hasTrainerPermissions() ||
+                        request.resource.data.clienteId == request.auth.uid);
+
+      // Los clientes pueden actualizar sus propios estados (marcar como leído/eliminado)
+      // Los entrenadores pueden actualizar cualquier estado
+      allow update: if isAuthenticated() &&
+                       (hasTrainerPermissions() ||
+                        resource.data.clienteId == request.auth.uid);
+
+      // Solo los entrenadores pueden eliminar estados de notificación
+      allow delete: if hasTrainerPermissions();
+    }
+
+    // ========================================
+    // DEFAULT DENY
+    // ========================================
+
+    // Denegar acceso a cualquier otra colección no especificada
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

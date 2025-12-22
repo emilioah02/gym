@@ -1,0 +1,12 @@
+{
+  "name": "mexican-bulking-gym",
+  "version": "1.0.0",
+  "description": "Mexican Bulking Gym App - Admin Scripts",
+  "scripts": {
+    "update-roles": "node scripts/update_user_roles.js"
+  },
+  "dependencies": {
+    "firebase": "^12.6.0",
+    "firebase-admin": "^12.7.0"
+  }
+}

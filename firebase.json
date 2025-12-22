@@ -1,0 +1,37 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "site": "mexican-bulking",
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mexican-bulking",
+          "appId": "1:589672531910:android:9c6e8717669d74ef1a94c7",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mexican-bulking",
+          "configurations": {
+            "android": "1:589672531910:android:9c6e8717669d74ef1a94c7",
+            "ios": "1:589672531910:ios:04839abcb394b8e21a94c7",
+            "macos": "1:589672531910:ios:04839abcb394b8e21a94c7",
+            "web": "1:589672531910:web:8aa4d474b4abf7751a94c7",
+            "windows": "1:589672531910:web:9830cf4f8069b58c1a94c7"
+          }
+        }
+      }
+    }
+  }
+}
