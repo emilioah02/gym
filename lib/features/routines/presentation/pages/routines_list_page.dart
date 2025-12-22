@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/typography.dart';
+import '../../../../core/models/models.dart';
+import '../../../../core/providers/app_providers.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/models/routine_model.dart';
-import '../../data/routines_data.dart';
 import '../../data/machines_data.dart';
 
 /// Routines List Page with gender toggle and machine library
-class RoutinesListPage extends StatefulWidget {
+/// Muestra rutinas creadas por entrenadores desde Firestore
+class RoutinesListPage extends ConsumerStatefulWidget {
   const RoutinesListPage({super.key});
 
   @override
-  State<RoutinesListPage> createState() => _RoutinesListPageState();
+  ConsumerState<RoutinesListPage> createState() => _RoutinesListPageState();
 }
 
-class _RoutinesListPageState extends State<RoutinesListPage>
+class _RoutinesListPageState extends ConsumerState<RoutinesListPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   RoutineGender _selectedGender = RoutineGender.unisex;
@@ -163,15 +165,15 @@ class _RoutinesListPageState extends State<RoutinesListPage>
           _GenderChip(
             label: 'Hombres',
             icon: Icons.male,
-            isSelected: _selectedGender == RoutineGender.men,
-            onTap: () => setState(() => _selectedGender = RoutineGender.men),
+            isSelected: _selectedGender == RoutineGender.hombre,
+            onTap: () => setState(() => _selectedGender = RoutineGender.hombre),
           ),
           const SizedBox(width: AppConstants.spacingS),
           _GenderChip(
             label: 'Mujeres',
             icon: Icons.female,
-            isSelected: _selectedGender == RoutineGender.women,
-            onTap: () => setState(() => _selectedGender = RoutineGender.women),
+            isSelected: _selectedGender == RoutineGender.mujer,
+            onTap: () => setState(() => _selectedGender = RoutineGender.mujer),
           ),
         ],
       ),
@@ -206,25 +208,155 @@ class _RoutinesListPageState extends State<RoutinesListPage>
   }
 
   Widget _buildRoutinesList() {
-    final routines = RoutinesData.getByGender(_selectedGender);
+    final routinesAsync = ref.watch(routinesProvider);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppConstants.spacingL),
-      itemCount: routines.length,
-      itemBuilder: (context, index) {
-        final routine = routines[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
-          child: RoutineTile(
-            title: routine.name,
-            subtitle: routine.description,
-            imageUrl: routine.imageUrl,
-            exerciseCount: routine.exerciseCount,
-            duration: routine.duration,
-            onTap: () => context.go('/routines/${routine.id}'),
-          ),
+    return routinesAsync.when(
+      data: (allRoutines) {
+        // Filtrar rutinas públicas (no plantillas) y por género seleccionado
+        final filteredRoutines = allRoutines.where((routine) {
+          // Solo rutinas públicas (no plantillas)
+          if (routine.esPlantilla) return false;
+
+          // Filtro por género
+          if (_selectedGender == RoutineGender.unisex) return true;
+          return routine.genero == _selectedGender || routine.genero == RoutineGender.unisex;
+        }).toList();
+
+        if (filteredRoutines.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppConstants.spacingXL),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.fitness_center_outlined,
+                    size: 64,
+                    color: AppColors.textSecondaryDark.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+                  Text(
+                    'No hay rutinas disponibles',
+                    style: AppTypography.titleLarge.copyWith(
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingS),
+                  Text(
+                    'Los entrenadores pronto crearán rutinas para ti',
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textSecondaryDark,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Determinar número de columnas según el ancho disponible
+            int crossAxisCount = 1;
+            double childAspectRatio = 1.4;
+
+            if (constraints.maxWidth >= 1400) {
+              crossAxisCount = 4;
+              childAspectRatio = 0.85;
+            } else if (constraints.maxWidth >= 1000) {
+              crossAxisCount = 3;
+              childAspectRatio = 0.85;
+            } else if (constraints.maxWidth >= 700) {
+              crossAxisCount = 2;
+              childAspectRatio = 0.9;
+            }
+
+            // En móvil usar lista, en pantallas grandes usar grid
+            if (crossAxisCount == 1) {
+              return ListView.builder(
+                padding: const EdgeInsets.all(AppConstants.spacingL),
+                itemCount: filteredRoutines.length,
+                itemBuilder: (context, index) {
+                  final routine = filteredRoutines[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
+                    child: RoutineTile(
+                      title: routine.nombre,
+                      subtitle: routine.descripcion ?? routine.parteDelCuerpo.displayName,
+                      imageUrl: routine.imageUrl,
+                      exerciseCount: routine.ejercicioCount,
+                      duration: routine.duracionTexto,
+                      onTap: () {
+                        // TODO: Navegar a detalle de rutina
+                        // context.go('/routines/${routine.id}');
+                      },
+                    ),
+                  );
+                },
+              );
+            }
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(AppConstants.spacingL),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: AppConstants.spacingM,
+                mainAxisSpacing: AppConstants.spacingM,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemCount: filteredRoutines.length,
+              itemBuilder: (context, index) {
+                final routine = filteredRoutines[index];
+                return RoutineTile(
+                  title: routine.nombre,
+                  subtitle: routine.descripcion ?? routine.parteDelCuerpo.displayName,
+                  imageUrl: routine.imageUrl,
+                  exerciseCount: routine.ejercicioCount,
+                  duration: routine.duracionTexto,
+                  onTap: () {
+                    // TODO: Navegar a detalle de rutina
+                    // context.go('/routines/${routine.id}');
+                  },
+                );
+              },
+            );
+          },
         );
       },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppConstants.spacingXL),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: AppColors.error,
+              ),
+              const SizedBox(height: AppConstants.spacingM),
+              Text(
+                'Error al cargar rutinas',
+                style: AppTypography.titleLarge.copyWith(
+                  color: AppColors.textPrimaryDark,
+                ),
+              ),
+              const SizedBox(height: AppConstants.spacingS),
+              Text(
+                error.toString(),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryDark,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

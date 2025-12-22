@@ -798,15 +798,60 @@ class FirebaseService {
 
   /// Marcar notificación como leída
   Future<void> markNotificationAsRead(String notificationId) async {
-    await _notificationsCollection.doc(notificationId).update({
-      'leido': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      // Primero intentar en la colección notifications
+      final notificationDoc = await _notificationsCollection.doc(notificationId).get();
+
+      if (notificationDoc.exists) {
+        await _notificationsCollection.doc(notificationId).update({
+          'leido': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Si no existe en notifications, podría ser una solicitud de rutina
+        final routineDoc = await _routineRequestsCollection.doc(notificationId).get();
+
+        if (routineDoc.exists) {
+          // Para solicitudes de rutina, agregar campo leido
+          await _routineRequestsCollection.doc(notificationId).update({
+            'leido': true,
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error marcando notificación como leída $notificationId: $e');
+    }
   }
 
   /// Eliminar notificación
   Future<void> deleteNotification(String notificationId) async {
-    await _notificationsCollection.doc(notificationId).delete();
+    try {
+      // Primero intentar obtener el documento de notifications
+      final notificationDoc = await _notificationsCollection.doc(notificationId).get();
+
+      if (notificationDoc.exists) {
+        // Si existe en notifications, eliminarlo de ahí
+        await _notificationsCollection.doc(notificationId).delete();
+        print('✅ Notificación eliminada de notifications: $notificationId');
+      } else {
+        // Si no existe en notifications, verificar si es una solicitud de rutina
+        final routineDoc = await _routineRequestsCollection.doc(notificationId).get();
+
+        if (routineDoc.exists) {
+          // Si existe en routine_requests, marcarla como rechazada o eliminarla
+          await _routineRequestsCollection.doc(notificationId).update({
+            'estado': 'rechazada',
+            'fechaRechazo': FieldValue.serverTimestamp(),
+          });
+          print('✅ Solicitud de rutina rechazada: $notificationId');
+        } else {
+          print('⚠️ Notificación no encontrada: $notificationId');
+        }
+      }
+    } catch (e) {
+      print('❌ Error eliminando notificación $notificationId: $e');
+      rethrow;
+    }
   }
 
   /// Contar notificaciones no leídas

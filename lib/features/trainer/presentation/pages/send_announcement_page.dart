@@ -217,7 +217,7 @@ class _SendAnnouncementPageState extends ConsumerState<SendAnnouncementPage> {
                         }
                       });
                     },
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                   if (!_enviarATodos) ...[
                     const Divider(color: AppColors.glassBorder),

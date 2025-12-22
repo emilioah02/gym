@@ -501,16 +501,19 @@ class _WorkoutSessionPageState extends ConsumerState<WorkoutSessionPage> {
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: _stopRestTimer,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.info,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: _stopRestTimer,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.info,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                ),
               ),
+              child: const Text('Omitir'),
             ),
-            child: const Text('Omitir'),
           ),
         ],
       ),

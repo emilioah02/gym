@@ -311,17 +311,53 @@ class _TrainerClientsPageState extends ConsumerState<TrainerClientsPage> {
 
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingM),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final client = clients[index];
-            return _ClientCard(
-              client: client,
-              onTap: () => _navigateToClientDetail(client),
+      sliver: SliverLayoutBuilder(
+        builder: (context, constraints) {
+          // Determinar número de columnas según el ancho disponible
+          int crossAxisCount = 1;
+          if (constraints.crossAxisExtent >= 1400) {
+            crossAxisCount = 4; // 4 columnas en pantallas muy grandes
+          } else if (constraints.crossAxisExtent >= 1000) {
+            crossAxisCount = 3; // 3 columnas en pantallas grandes
+          } else if (constraints.crossAxisExtent >= 700) {
+            crossAxisCount = 2; // 2 columnas en tablets
+          }
+
+          // En móvil usar lista, en pantallas grandes usar grid
+          if (crossAxisCount == 1) {
+            return SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final client = clients[index];
+                  return _ClientCard(
+                    client: client,
+                    onTap: () => _navigateToClientDetail(client),
+                  );
+                },
+                childCount: clients.length,
+              ),
             );
-          },
-          childCount: clients.length,
-        ),
+          }
+
+          return SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: AppConstants.spacingM,
+              mainAxisSpacing: AppConstants.spacingM,
+              childAspectRatio: 2.8, // Proporción de las cards
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final client = clients[index];
+                return _ClientCard(
+                  client: client,
+                  onTap: () => _navigateToClientDetail(client),
+                );
+              },
+              childCount: clients.length,
+            ),
+          );
+        },
       ),
     );
   }

@@ -223,61 +223,59 @@ class _RoutinesTab extends ConsumerWidget {
           );
         }
 
-        // Agrupar por dificultad
-        final grouped = <RoutineDifficulty, List<RoutineModel>>{};
-        for (final routine in userRoutines) {
-          grouped.putIfAbsent(routine.dificultad, () => []).add(routine);
-        }
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Determinar número de columnas según el ancho disponible
+            int crossAxisCount = 1;
+            double childAspectRatio = 1.4;
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppConstants.spacingM),
-          itemCount: RoutineDifficulty.values.length,
-          itemBuilder: (context, index) {
-            final difficulty = RoutineDifficulty.values[index];
-            final routinesInGroup = grouped[difficulty] ?? [];
+            if (constraints.maxWidth >= 1400) {
+              crossAxisCount = 4; // 4 columnas en pantallas muy grandes
+              childAspectRatio = 0.85;
+            } else if (constraints.maxWidth >= 1000) {
+              crossAxisCount = 3; // 3 columnas en pantallas grandes
+              childAspectRatio = 0.85;
+            } else if (constraints.maxWidth >= 700) {
+              crossAxisCount = 2; // 2 columnas en tablets
+              childAspectRatio = 0.9;
+            }
 
-            if (routinesInGroup.isEmpty) return const SizedBox.shrink();
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingM),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getDifficultyColor(difficulty).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-                        ),
-                        child: Text(
-                          difficulty.displayName,
-                          style: TextStyle(
-                            color: _getDifficultyColor(difficulty),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '(${routinesInGroup.length})',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondaryDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                ...routinesInGroup.map((routine) => _RoutineCard(
+            // En móvil usar lista, en pantallas grandes usar grid
+            if (crossAxisCount == 1) {
+              return ListView.builder(
+                padding: const EdgeInsets.all(AppConstants.spacingM),
+                itemCount: userRoutines.length,
+                itemBuilder: (context, index) {
+                  final routine = userRoutines[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
+                    child: _RoutineCard(
                       routine: routine,
                       onTap: () => _showRoutineDetail(context, routine, ref),
                       onMoreOptions: () => _showRoutineOptions(context, ref, routine),
-                    )),
-              ],
+                    ),
+                  );
+                },
+              );
+            }
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(AppConstants.spacingM),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: AppConstants.spacingM,
+                mainAxisSpacing: AppConstants.spacingM,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemCount: userRoutines.length,
+              itemBuilder: (context, index) {
+                final routine = userRoutines[index];
+                return _RoutineCard(
+                  routine: routine,
+                  onTap: () => _showRoutineDetail(context, routine, ref),
+                  onMoreOptions: () => _showRoutineOptions(context, ref, routine),
+                );
+              },
             );
           },
         );
@@ -496,15 +494,59 @@ class _TemplatesTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppConstants.spacingM),
-          itemCount: templates.length,
-          itemBuilder: (context, index) {
-            final template = templates[index];
-            return _RoutineCard(
-              routine: template,
-              isTemplate: true,
-              onTap: () => _showTemplateDetail(context, template),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Determinar número de columnas según el ancho disponible
+            int crossAxisCount = 1;
+            double childAspectRatio = 1.4;
+
+            if (constraints.maxWidth >= 1400) {
+              crossAxisCount = 4; // 4 columnas en pantallas muy grandes
+              childAspectRatio = 0.85;
+            } else if (constraints.maxWidth >= 1000) {
+              crossAxisCount = 3; // 3 columnas en pantallas grandes
+              childAspectRatio = 0.85;
+            } else if (constraints.maxWidth >= 700) {
+              crossAxisCount = 2; // 2 columnas en tablets
+              childAspectRatio = 0.9;
+            }
+
+            // En móvil usar lista, en pantallas grandes usar grid
+            if (crossAxisCount == 1) {
+              return ListView.builder(
+                padding: const EdgeInsets.all(AppConstants.spacingM),
+                itemCount: templates.length,
+                itemBuilder: (context, index) {
+                  final template = templates[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
+                    child: _RoutineCard(
+                      routine: template,
+                      isTemplate: true,
+                      onTap: () => _showTemplateDetail(context, template),
+                    ),
+                  );
+                },
+              );
+            }
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(AppConstants.spacingM),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: AppConstants.spacingM,
+                mainAxisSpacing: AppConstants.spacingM,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemCount: templates.length,
+              itemBuilder: (context, index) {
+                final template = templates[index];
+                return _RoutineCard(
+                  routine: template,
+                  isTemplate: true,
+                  onTap: () => _showTemplateDetail(context, template),
+                );
+              },
             );
           },
         );
@@ -542,7 +584,7 @@ class _TemplatesTab extends ConsumerWidget {
   }
 }
 
-/// Card de rutina
+/// Card de rutina con diseño moderno y soporte para imágenes
 class _RoutineCard extends StatelessWidget {
   final RoutineModel routine;
   final bool isTemplate;
@@ -558,138 +600,181 @@ class _RoutineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
-      child: GlassCard(
-        onTap: onTap,
-        child: Row(
-          children: [
-            // Indicador de color por dificultad
-            Container(
-              width: 4,
-              height: 80,
-              decoration: BoxDecoration(
-                color: _getDifficultyColor(routine.dificultad),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: AppConstants.spacingM),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (isTemplate)
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.info.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'PLANTILLA',
-                            style: TextStyle(
-                              color: AppColors.info,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      Expanded(
-                        child: Text(
-                          routine.nombre,
-                          style: AppTypography.titleMedium.copyWith(
-                            color: AppColors.textPrimaryDark,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+    return GlassCard(
+      onTap: onTap,
+      padding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Imagen de la rutina
+              Container(
+                height: 140,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppConstants.radiusL),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      _InfoChip(
-                        icon: Icons.fitness_center,
-                        label: routine.parteDelCuerpo.displayName,
-                      ),
-                      const SizedBox(width: 8),
-                      _InfoChip(
-                        icon: Icons.timer,
-                        label: routine.duracionTexto,
-                      ),
-                      const SizedBox(width: 8),
-                      _InfoChip(
-                        icon: Icons.list,
-                        label: '${routine.ejercicioCount} ejercicios',
-                      ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _getDifficultyColor(routine.dificultad).withValues(alpha: 0.3),
+                      _getDifficultyColor(routine.dificultad).withValues(alpha: 0.1),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getDifficultyColor(routine.dificultad).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          routine.dificultad.displayName,
-                          style: TextStyle(
-                            color: _getDifficultyColor(routine.dificultad),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      if (routine.genero != RoutineGender.unisex) ...[
-                        const SizedBox(width: 8),
-                        Icon(
-                          routine.genero == RoutineGender.hombre
-                              ? Icons.male
-                              : Icons.female,
-                          size: 16,
-                          color: routine.genero == RoutineGender.hombre
-                              ? Colors.blue
-                              : Colors.pink,
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (onMoreOptions != null)
-              GestureDetector(
-                onTap: () {
-                  onMoreOptions!();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(
-                    Icons.more_vert,
-                    color: AppColors.textSecondaryDark,
                   ),
                 ),
-              )
-            else
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.textSecondaryDark,
+                child: routine.imageUrl != null && routine.imageUrl!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(AppConstants.radiusL),
+                        ),
+                        child: Image.network(
+                          routine.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
+                        ),
+                      )
+                    : _buildPlaceholderImage(),
               ),
-          ],
-        ),
+              // Contenido
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppConstants.spacingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Badges (plantilla, dificultad)
+                      Row(
+                        children: [
+                          if (isTemplate)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'PLANTILLA',
+                                style: TextStyle(
+                                  color: AppColors.info,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getDifficultyColor(routine.dificultad).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              routine.dificultad.displayName,
+                              style: TextStyle(
+                                color: _getDifficultyColor(routine.dificultad),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (routine.genero != RoutineGender.unisex) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              routine.genero == RoutineGender.hombre
+                                  ? Icons.male
+                                  : Icons.female,
+                              size: 14,
+                              color: routine.genero == RoutineGender.hombre
+                                  ? Colors.blue
+                                  : Colors.pink,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Título
+                      Text(
+                        routine.nombre,
+                        style: AppTypography.titleMedium.copyWith(
+                          color: AppColors.textPrimaryDark,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      // Descripción o parte del cuerpo
+                      Text(
+                        routine.descripcion ?? routine.parteDelCuerpo.displayName,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textSecondaryDark,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      // Info chips
+                      Row(
+                        children: [
+                          _InfoChip(
+                            icon: Icons.fitness_center,
+                            label: '${routine.ejercicioCount}',
+                          ),
+                          const SizedBox(width: 12),
+                          _InfoChip(
+                            icon: Icons.schedule,
+                            label: routine.duracionTexto,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Botón de opciones
+          if (onMoreOptions != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: onMoreOptions,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundDark.withValues(alpha: 0.7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.more_vert,
+                    color: AppColors.textPrimaryDark,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Center(
+      child: Icon(
+        Icons.fitness_center,
+        size: 48,
+        color: AppColors.primary.withValues(alpha: 0.5),
       ),
     );
   }

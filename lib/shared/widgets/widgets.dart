@@ -1,4 +1,5 @@
 /// Barrel file for all shared widgets
+library;
 export 'glass_card.dart';
 export 'primary_button.dart';
 export 'input_field.dart';
