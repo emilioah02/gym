@@ -274,7 +274,8 @@ class _RoutinesTab extends ConsumerWidget {
                 ),
                 ...routinesInGroup.map((routine) => _RoutineCard(
                       routine: routine,
-                      onTap: () => _showRoutineOptions(context, ref, routine),
+                      onTap: () => _showRoutineDetail(context, routine, ref),
+                      onMoreOptions: () => _showRoutineOptions(context, ref, routine),
                     )),
               ],
             );
@@ -301,6 +302,93 @@ class _RoutinesTab extends ConsumerWidget {
       case RoutineDifficulty.experto:
         return AppColors.error;
     }
+  }
+
+  void _showRoutineDetail(BuildContext context, RoutineModel routine, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _RoutineDetailSheet(
+        routine: routine,
+        onEdit: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RoutineBuilderPage(
+                mode: RoutineBuilderMode.edit,
+                existingRoutine: routine,
+              ),
+            ),
+          );
+        },
+        onDuplicate: () async {
+          Navigator.pop(context);
+          try {
+            await ref.read(firebaseServiceProvider).duplicateRoutine(
+                  routine.id,
+                  '${routine.nombre} (copia)',
+                );
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Rutina duplicada')),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: $e')),
+              );
+            }
+          }
+        },
+        onDelete: () async {
+          Navigator.pop(context);
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppColors.surfaceDark,
+              title: Text('Eliminar rutina', style: AppTypography.titleLargeDark),
+              content: Text(
+                '¿Estás seguro de eliminar "${routine.nombre}"?',
+                style: AppTypography.bodyMediumDark,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                  ),
+                  child: const Text('Eliminar'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm == true) {
+            try {
+              await ref.read(firebaseServiceProvider).deleteRoutine(routine.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Rutina eliminada')),
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            }
+          }
+        },
+      ),
+    );
   }
 
   void _showRoutineOptions(BuildContext context, WidgetRef ref, RoutineModel routine) {
@@ -459,11 +547,13 @@ class _RoutineCard extends StatelessWidget {
   final RoutineModel routine;
   final bool isTemplate;
   final VoidCallback onTap;
+  final VoidCallback? onMoreOptions;
 
   const _RoutineCard({
     required this.routine,
     this.isTemplate = false,
     required this.onTap,
+    this.onMoreOptions,
   });
 
   @override
@@ -580,10 +670,24 @@ class _RoutineCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondaryDark,
-            ),
+            if (onMoreOptions != null)
+              GestureDetector(
+                onTap: () {
+                  onMoreOptions!();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    Icons.more_vert,
+                    color: AppColors.textSecondaryDark,
+                  ),
+                ),
+              )
+            else
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.textSecondaryDark,
+              ),
           ],
         ),
       ),
@@ -982,10 +1086,16 @@ class _TemplateSelectorSheet extends ConsumerWidget {
 class _RoutineDetailSheet extends StatelessWidget {
   final RoutineModel routine;
   final VoidCallback? onUseTemplate;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDuplicate;
+  final VoidCallback? onDelete;
 
   const _RoutineDetailSheet({
     required this.routine,
     this.onUseTemplate,
+    this.onEdit,
+    this.onDuplicate,
+    this.onDelete,
   });
 
   @override
@@ -1004,28 +1114,54 @@ class _RoutineDetailSheet extends StatelessWidget {
                 color: AppColors.surfaceDark.withValues(alpha: 0.95),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.all(AppConstants.spacingL),
+              child: Column(
                 children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.glassBorder,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+                  // Header con título y botón de opciones
+                  Padding(
+                    padding: const EdgeInsets.all(AppConstants.spacingL),
+                    child: Column(
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.glassBorder,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingL),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                routine.nombre,
+                                style: AppTypography.headlineMedium.copyWith(
+                                  color: AppColors.textPrimaryDark,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (onEdit != null || onDuplicate != null || onDelete != null)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.more_vert,
+                                  color: AppColors.textPrimaryDark,
+                                ),
+                                onPressed: () => _showOptionsMenu(context),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: AppConstants.spacingL),
-                  Text(
-                    routine.nombre,
-                    style: AppTypography.headlineMedium.copyWith(
-                      color: AppColors.textPrimaryDark,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  // Contenido scrolleable
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingL),
+                      children: [
                   if (routine.descripcion != null) ...[
                     const SizedBox(height: AppConstants.spacingS),
                     Text(
@@ -1088,12 +1224,71 @@ class _RoutineDetailSheet extends StatelessWidget {
                     ),
                   ],
                   SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  void _showOptionsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(AppConstants.spacingL),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceDark.withValues(alpha: 0.95),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.glassBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingL),
+                if (onEdit != null)
+                  ListTile(
+                    leading: const Icon(Icons.edit, color: AppColors.primary),
+                    title: Text('Editar', style: AppTypography.bodyLargeDark),
+                    onTap: onEdit,
+                  ),
+                if (onDuplicate != null)
+                  ListTile(
+                    leading: const Icon(Icons.copy, color: AppColors.info),
+                    title: Text('Duplicar', style: AppTypography.bodyLargeDark),
+                    onTap: onDuplicate,
+                  ),
+                if (onDelete != null)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: AppColors.error),
+                    title: Text(
+                      'Eliminar',
+                      style: AppTypography.bodyLarge.copyWith(color: AppColors.error),
+                    ),
+                    onTap: onDelete,
+                  ),
+                SizedBox(height: MediaQuery.of(context).padding.bottom),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

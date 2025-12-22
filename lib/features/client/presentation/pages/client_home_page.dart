@@ -69,11 +69,17 @@ class ClientHomePage extends ConsumerWidget {
   }
 
   SliverAppBar _buildAppBar(BuildContext context, UserModel? user, int unreadCount) {
+    // Verificar si es un usuario de prueba (entrenador en modo cliente)
+    final isTestUser = user?.uid.contains('_test_client') ?? false;
+
     return SliverAppBar(
       expandedHeight: 120,
       floating: true,
       backgroundColor: Colors.transparent,
       actions: [
+        // Botón para volver al modo entrenador (solo para usuarios de prueba)
+        if (isTestUser)
+          _BackToTrainerButton(),
         // Icono de notificaciones con badge
         Padding(
           padding: const EdgeInsets.only(right: AppConstants.spacingM, top: 8),
@@ -1445,6 +1451,28 @@ class _OrderReadyNotificationState extends ConsumerState<_OrderReadyNotification
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Botón para volver al modo entrenador
+class _BackToTrainerButton extends ConsumerWidget {
+  const _BackToTrainerButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, top: 8),
+      child: IconButton(
+        icon: const Icon(Icons.admin_panel_settings, color: AppColors.warning),
+        tooltip: 'Volver al modo entrenador',
+        onPressed: () {
+          // Restablecer el ID de usuario activo a null (usuario real)
+          ref.read(activeUserIdProvider.notifier).state = null;
+          // Navegar al modo entrenador
+          context.go('/trainer');
+        },
       ),
     );
   }

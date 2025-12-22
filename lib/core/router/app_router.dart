@@ -7,6 +7,8 @@ import '../../features/landing/presentation/pages/landing_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/signup_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
+import '../../features/auth/presentation/pages/privacy_policy_page.dart';
+import '../../features/auth/presentation/pages/terms_conditions_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/routines/presentation/pages/routines_list_page.dart';
 import '../../features/routines/presentation/pages/routine_detail_page.dart';
@@ -45,6 +47,8 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';
+  static const String privacyPolicy = '/privacy-policy';
+  static const String termsConditions = '/terms-conditions';
 
   // Legacy routes (keeping for backward compatibility)
   static const String home = '/home';
@@ -104,6 +108,8 @@ class AppRouter {
           AppRoutes.login,
           AppRoutes.signup,
           AppRoutes.forgotPassword,
+          AppRoutes.privacyPolicy,
+          AppRoutes.termsConditions,
         ];
 
         // Auth-only routes (login, signup, forgot password)
@@ -189,6 +195,28 @@ class AppRouter {
           pageBuilder: (context, state) => CustomTransitionPage(
             key: state.pageKey,
             child: const ForgotPasswordPage(),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
+        // Privacy Policy Page
+        GoRoute(
+          path: AppRoutes.privacyPolicy,
+          name: 'privacyPolicy',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const PrivacyPolicyPage(),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
+        // Terms and Conditions Page
+        GoRoute(
+          path: AppRoutes.termsConditions,
+          name: 'termsConditions',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const TermsConditionsPage(),
             transitionsBuilder: _slideTransition,
           ),
         ),

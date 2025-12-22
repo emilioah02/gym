@@ -39,7 +39,7 @@ class TrainerProfilePage extends ConsumerWidget {
                   error: (error, _) => _ErrorState(error: error.toString()),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              const SliverToBoxAdapter(child: SizedBox(height: 15)),
             ],
           ),
         ],
@@ -102,7 +102,7 @@ class TrainerProfilePage extends ConsumerWidget {
           const SizedBox(height: AppConstants.spacingL),
 
           // Modo Cliente
-          _buildClientModeCard(context),
+          const _ClientModeCard(),
           const SizedBox(height: AppConstants.spacingL),
 
           // Agregar Entrenador
@@ -406,64 +406,6 @@ class TrainerProfilePage extends ConsumerWidget {
       style: AppTypography.titleMedium.copyWith(
         color: AppColors.textPrimaryDark,
         fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-
-  Widget _buildClientModeCard(BuildContext context) {
-    return GlassCard(
-      onTap: () {
-        context.go('/client/home');
-      },
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(AppConstants.radiusM),
-            ),
-            child: const Icon(
-              Icons.person_outline,
-              color: AppColors.info,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: AppConstants.spacingM),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Modo Cliente',
-                  style: AppTypography.titleMedium.copyWith(
-                    color: AppColors.textPrimaryDark,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Ver la app como cliente',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondaryDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-            ),
-            child: const Icon(
-              Icons.arrow_forward,
-              color: AppColors.info,
-              size: 20,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1129,14 +1071,19 @@ class _TrainerManagementSectionState
           children: [
             CircularProgressIndicator(color: AppColors.primary),
             SizedBox(width: 16),
-            Text('Actualizando usuarios...', style: TextStyle(color: AppColors.textPrimaryDark)),
+            Text(
+              'Actualizando usuarios...',
+              style: TextStyle(color: AppColors.textPrimaryDark),
+            ),
           ],
         ),
       ),
     );
 
     try {
-      final results = await ref.read(firebaseServiceProvider).makeUsersTrainers(emails);
+      final results = await ref
+          .read(firebaseServiceProvider)
+          .makeUsersTrainers(emails);
 
       if (mounted) {
         Navigator.pop(context); // Cerrar loading
@@ -1146,23 +1093,32 @@ class _TrainerManagementSectionState
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppColors.surfaceDark,
-            title: Text('Resultados', style: TextStyle(color: AppColors.textPrimaryDark)),
+            title: Text(
+              'Resultados',
+              style: TextStyle(color: AppColors.textPrimaryDark),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: results.entries.map((e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    '${e.key}: ${e.value}',
-                    style: TextStyle(
-                      color: e.value.contains('Error') || e.value.contains('No encontrado')
-                          ? AppColors.error
-                          : AppColors.success,
-                      fontSize: 12,
-                    ),
-                  ),
-                )).toList(),
+                children: results.entries
+                    .map(
+                      (e) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '${e.key}: ${e.value}',
+                          style: TextStyle(
+                            color:
+                                e.value.contains('Error') ||
+                                    e.value.contains('No encontrado')
+                                ? AppColors.error
+                                : AppColors.success,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
             actions: [
@@ -1181,7 +1137,10 @@ class _TrainerManagementSectionState
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -1299,22 +1258,19 @@ class _AddTrainerCardState extends ConsumerState<_AddTrainerCard> {
     setState(() => _isLoading = true);
 
     try {
-      final results = await ref
-          .read(firebaseServiceProvider)
-          .makeUsersTrainers([email]);
+      final results = await ref.read(firebaseServiceProvider).makeUsersTrainers(
+        [email],
+      );
 
       final result = results[email] ?? 'Error desconocido';
 
       if (mounted) {
-        final isSuccess = !result.contains('Error') && !result.contains('No encontrado');
+        final isSuccess =
+            !result.contains('Error') && !result.contains('No encontrado');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              isSuccess
-                  ? '$email ahora es entrenador'
-                  : result,
-            ),
+            content: Text(isSuccess ? '$email ahora es entrenador' : result),
             backgroundColor: isSuccess ? AppColors.success : AppColors.error,
           ),
         );
@@ -1399,11 +1355,15 @@ class _AddTrainerCardState extends ConsumerState<_AddTrainerCard> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                      borderSide: const BorderSide(color: AppColors.glassBorder),
+                      borderSide: const BorderSide(
+                        color: AppColors.glassBorder,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                      borderSide: const BorderSide(color: AppColors.glassBorder),
+                      borderSide: const BorderSide(
+                        color: AppColors.glassBorder,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppConstants.radiusM),
@@ -1418,31 +1378,168 @@ class _AddTrainerCardState extends ConsumerState<_AddTrainerCard> {
                 ),
               ),
               const SizedBox(width: AppConstants.spacingS),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _addTrainer,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                    ),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _addTrainer,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  minimumSize: const Size(48, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusM),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.add, size: 24),
                 ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.add, size: 24),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget para el modo cliente
+class _ClientModeCard extends ConsumerStatefulWidget {
+  const _ClientModeCard();
+
+  @override
+  ConsumerState<_ClientModeCard> createState() => _ClientModeCardState();
+}
+
+class _ClientModeCardState extends ConsumerState<_ClientModeCard> {
+  bool _isLoading = false;
+
+  Future<void> _switchToClientMode() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final firebaseService = ref.read(firebaseServiceProvider);
+      final currentUser = ref.read(authServiceProvider).currentUser;
+
+      if (currentUser == null) {
+        throw Exception('No hay usuario autenticado');
+      }
+
+      // Verificar si ya existe un usuario de prueba para este entrenador
+      final testUserId = '${currentUser.uid}_test_client';
+      final existingTestUser = await firebaseService.getUser(testUserId);
+
+      if (existingTestUser == null) {
+        // Crear usuario de prueba solo la primera vez
+        final testUser = UserModel(
+          uid: testUserId,
+          email: 'cliente.prueba.${currentUser.uid}@test.com',
+          nombre: 'Cliente Prueba',
+          rol: UserRole.cliente,
+          onboardingCompleto: true,
+          createdAt: DateTime.now(),
+        );
+
+        await firebaseService.saveUser(testUser);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Usuario de prueba creado exitosamente'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+
+      // Configurar el ID de usuario activo al usuario de prueba
+      ref.read(activeUserIdProvider.notifier).state = testUserId;
+
+      // Navegar al modo cliente
+      if (mounted) {
+        context.go('/client/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: _isLoading ? null : _switchToClientMode,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppConstants.radiusM),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      color: AppColors.info,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(
+                    Icons.person_outline,
+                    color: AppColors.info,
+                    size: 28,
+                  ),
+          ),
+          const SizedBox(width: AppConstants.spacingM),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Modo Cliente',
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.textPrimaryDark,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Ver la app como cliente',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondaryDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+            ),
+            child: const Icon(
+              Icons.arrow_forward,
+              color: AppColors.info,
+              size: 20,
+            ),
           ),
         ],
       ),

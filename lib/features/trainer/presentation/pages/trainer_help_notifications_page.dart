@@ -53,8 +53,8 @@ class TrainerHelpNotificationsPage extends ConsumerWidget {
                   ),
                   error: (error, stack) => SliverFillRemaining(
                     child: Center(
-                      child: Text(
-                        'Error: $error',
+                      child: SelectableText.rich(
+                        'Error: $error' as TextSpan,
                         style: const TextStyle(color: AppColors.error),
                       ),
                     ),

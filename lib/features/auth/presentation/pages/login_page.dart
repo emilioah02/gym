@@ -341,6 +341,52 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     ],
                   ),
                 ),
+
+                const SizedBox(height: AppConstants.spacingL),
+
+                // Privacy Policy and Terms Links
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Al continuar, aceptas nuestros ',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondaryDark,
+                        fontSize: 11,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => context.push(AppRoutes.termsConditions),
+                      child: Text(
+                        'Términos',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      ' y ',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondaryDark,
+                        fontSize: 11,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => context.push(AppRoutes.privacyPolicy),
+                      child: Text(
+                        'Privacidad',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

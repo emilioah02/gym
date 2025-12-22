@@ -630,20 +630,20 @@ class _LandingPageState extends State<LandingPage>
                           _buildSatelliteMapGrid(),
 
                           // Pin de ubicación centrado
-                          const Center(
-                            child: Icon(
-                              Icons.location_pin,
-                              color: AppColors.error,
-                              size: 48,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black54,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
+                          // const Center(
+                          //   child: Icon(
+                          //     Icons.location_pin,
+                          //     color: AppColors.error,
+                          //     size: 48,
+                          //     shadows: [
+                          //       Shadow(
+                          //         color: Colors.black54,
+                          //         blurRadius: 8,
+                          //         offset: Offset(0, 2),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
 
                           // Overlay de tap para indicar que es clickeable
                           Positioned(
@@ -790,6 +790,42 @@ class _LandingPageState extends State<LandingPage>
               color: AppColors.textSecondaryDark,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppConstants.spacingS),
+
+          // Legal Links
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: () => context.push(AppRoutes.privacyPolicy),
+                child: Text(
+                  'Privacidad',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingM),
+              Text(
+                '•',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryDark,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingM),
+              InkWell(
+                onTap: () => context.push(AppRoutes.termsConditions),
+                child: Text(
+                  'Términos',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppConstants.spacingM),
           // Developer Credit

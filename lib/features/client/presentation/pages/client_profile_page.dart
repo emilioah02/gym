@@ -108,6 +108,9 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
   }
 
   SliverAppBar _buildAppBar() {
+    final user = ref.watch(userModelProvider).valueOrNull;
+    final isTestUser = user?.uid.contains('_test_client') ?? false;
+
     return SliverAppBar(
       floating: true,
       backgroundColor: Colors.transparent,
@@ -119,26 +122,23 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
           fontWeight: FontWeight.w700,
         ),
       ),
-      // actions: [
-      //   Padding(
-      //     padding: const EdgeInsets.only(right: 4),
-      //     child: _isEditing
-      //         ? TextButton(
-      //             onPressed: () => setState(() => _isEditing = false),
-      //             child: const Text('Cancelar'),
-      //           )
-      //         : IconButton(
-      //             icon: const Icon(Icons.edit, color: AppColors.primary),
-      //             onPressed: () {
-      //               final user = ref.read(userModelProvider).valueOrNull;
-      //               if (user != null) {
-      //                 _initControllers(user);
-      //                 setState(() => _isEditing = true);
-      //               }
-      //             },
-      //           ),
-      //   ),
-      // ],
+      actions: [
+        // Botón para volver al modo entrenador (solo para usuarios de prueba)
+        if (isTestUser)
+          Padding(
+            padding: const EdgeInsets.only(right: AppConstants.spacingM),
+            child: IconButton(
+              icon: const Icon(Icons.admin_panel_settings, color: AppColors.warning),
+              tooltip: 'Volver al modo entrenador',
+              onPressed: () {
+                // Restablecer el ID de usuario activo a null (usuario real)
+                ref.read(activeUserIdProvider.notifier).state = null;
+                // Navegar al modo entrenador
+                context.go('/trainer');
+              },
+            ),
+          ),
+      ],
     );
   }
 

@@ -31,12 +31,21 @@ final firebaseUserProvider = StreamProvider<User?>((ref) {
   return FirebaseAuth.instance.authStateChanges();
 });
 
+/// Provider de estado para el ID de usuario activo (puede ser el real o el de prueba)
+/// null = usar usuario real, no-null = usar usuario de prueba
+final activeUserIdProvider = StateProvider<String?>((ref) => null);
+
 /// Provider para el modelo de usuario completo desde Firestore
+/// Usa el activeUserIdProvider si está configurado, sino usa el usuario autenticado
 final userModelProvider = StreamProvider<UserModel?>((ref) {
   final firebaseUser = ref.watch(firebaseUserProvider).value;
   if (firebaseUser == null) return Stream.value(null);
 
-  return ref.watch(firebaseServiceProvider).userStream(firebaseUser.uid);
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
+  return ref.watch(firebaseServiceProvider).userStream(uid);
 });
 
 /// Provider para verificar y obtener el rol del usuario
