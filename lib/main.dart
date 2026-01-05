@@ -30,14 +30,11 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Inicializar servicio de notificaciones push
-  try {
-    final notificationService = NotificationService();
-    await notificationService.initialize();
-  } catch (e) {
-    // Si falla la inicialización de notificaciones, continuar de todas formas
+  // Inicializar servicio de notificaciones push sin bloquear el inicio
+  // Se ejecuta en segundo plano para que la UI se muestre inmediatamente
+  NotificationService().initialize().catchError((e) {
     debugPrint('⚠️ Error inicializando notificaciones: $e');
-  }
+  });
 
   runApp(const ProviderScope(child: MyApp()));
 }

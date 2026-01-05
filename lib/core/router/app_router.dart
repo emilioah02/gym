@@ -89,7 +89,7 @@ class AppRouter {
     return GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: AppRoutes.landing,
-      debugLogDiagnostics: true,
+      debugLogDiagnostics: false,
 
       // CRITICAL: refreshListenable reacts to auth state changes
       refreshListenable: GoRouterRefreshStream(

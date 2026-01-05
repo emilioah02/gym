@@ -62,10 +62,7 @@ class NotificationService {
     }
 
     // Obtener el token FCM
-    final token = await getToken();
-    if (token != null) {
-      print('📱 FCM Token: $token');
-    }
+    await getToken();
 
     // Configurar listeners para notificaciones
     _setupNotificationListeners();

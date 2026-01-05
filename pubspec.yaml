@@ -52,5 +52,4 @@ flutter:
     - assets/images/
     - assets/images/instalaciones/
     - assets/icons/
-    - assets/publicidad/
-    - assets/sounds/
+    - assets/publicidad/ 
