@@ -131,6 +131,29 @@ class MachineTile extends StatelessWidget {
 
   Widget _buildImage({required double size, bool showFull = false}) {
     if (imageUrl != null && imageUrl!.isNotEmpty) {
+      // Check if it's a local asset
+      if (imageUrl!.startsWith('assets/')) {
+        if (showFull) {
+          return Image.asset(
+            imageUrl!,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) => _buildPlaceholder(size),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppConstants.radiusM),
+          child: Image.asset(
+            imageUrl!,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildPlaceholder(size),
+          ),
+        );
+      }
+      // Network image
       if (showFull) {
         return CachedNetworkImage(
           imageUrl: imageUrl!,

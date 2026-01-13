@@ -374,22 +374,7 @@ class _MachineCard extends StatelessWidget {
                 top: Radius.circular(AppConstants.radiusL),
               ),
               child: machine.imageUrl != null && machine.imageUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: machine.imageUrl!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      placeholder: (context, url) => Container(
-                        color: AppColors.surfaceDark,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => _buildPlaceholderImage(machine.categoria),
-                    )
+                  ? _buildMachineImage(machine.imageUrl!, machine.categoria)
                   : _buildPlaceholderImage(machine.categoria),
             ),
           ),
@@ -461,6 +446,39 @@ class _MachineCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Construye la imagen de la máquina (local o de red)
+  Widget _buildMachineImage(String imageUrl, MachineCategory category) {
+    // Verificar si es un asset local
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildPlaceholderImage(category);
+        },
+      );
+    }
+    // Si es URL de red, usar CachedNetworkImage
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      placeholder: (context, url) => Container(
+        color: AppColors.surfaceDark,
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 2,
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) => _buildPlaceholderImage(category),
     );
   }
 
@@ -907,27 +925,40 @@ class MachineDetailSheet extends StatelessWidget {
                   ),
 
                   // Imagen
-                  if (machine.imageUrl != null)
+                  if (machine.imageUrl != null && machine.imageUrl!.isNotEmpty)
                     AspectRatio(
                       aspectRatio: 16 / 9,
-                      child: CachedNetworkImage(
-                        imageUrl: machine.imageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppColors.glassDark,
-                          child: const Center(
-                            child: CircularProgressIndicator(color: AppColors.primary),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppColors.glassDark,
-                          child: const Icon(
-                            Icons.fitness_center,
-                            color: AppColors.textSecondaryDark,
-                            size: 64,
-                          ),
-                        ),
-                      ),
+                      child: machine.imageUrl!.startsWith('assets/')
+                          ? Image.asset(
+                              machine.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: AppColors.glassDark,
+                                child: const Icon(
+                                  Icons.fitness_center,
+                                  color: AppColors.textSecondaryDark,
+                                  size: 64,
+                                ),
+                              ),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: machine.imageUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: AppColors.glassDark,
+                                child: const Center(
+                                  child: CircularProgressIndicator(color: AppColors.primary),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: AppColors.glassDark,
+                                child: const Icon(
+                                  Icons.fitness_center,
+                                  color: AppColors.textSecondaryDark,
+                                  size: 64,
+                                ),
+                              ),
+                            ),
                     ),
 
                   Padding(
@@ -1646,6 +1677,423 @@ class _EditMachineDialogState extends ConsumerState<EditMachineDialog> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Diálogo para agregar una nueva máquina
+class AddMachineDialog extends ConsumerStatefulWidget {
+  const AddMachineDialog({super.key});
+
+  @override
+  ConsumerState<AddMachineDialog> createState() => _AddMachineDialogState();
+}
+
+class _AddMachineDialogState extends ConsumerState<AddMachineDialog> {
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+  final _setsController = TextEditingController(text: '3');
+  final _repsController = TextEditingController(text: '12');
+
+  MachineCategory _selectedCategory = MachineCategory.functional;
+  MachineType _selectedType = MachineType.maquina;
+  DifficultyLevel _selectedLevel = DifficultyLevel.principiante;
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _imageUrlController.dispose();
+    _setsController.dispose();
+    _repsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveMachine() async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El nombre no puede estar vacío'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La descripción no puede estar vacía'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final sets = int.tryParse(_setsController.text) ?? 3;
+    final reps = int.tryParse(_repsController.text) ?? 12;
+
+    if (sets < 1 || sets > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Las series deben estar entre 1 y 10'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (reps < 1 || reps > 50) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Las repeticiones deben estar entre 1 y 50'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Generar ID único basado en el nombre
+      final id = _nameController.text
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+          .replaceAll(RegExp(r'^_+|_+$'), '');
+
+      final newMachine = MachineModel(
+        id: id,
+        nombre: _nameController.text.trim(),
+        descripcion: _descriptionController.text.trim(),
+        imageUrl: _imageUrlController.text.trim().isEmpty
+            ? null
+            : _imageUrlController.text.trim(),
+        categoria: _selectedCategory,
+        tipo: _selectedType,
+        nivel: _selectedLevel,
+        defaultSets: sets,
+        defaultReps: reps,
+      );
+
+      final firebaseService = ref.read(firebaseServiceProvider);
+      await firebaseService.saveMachine(newMachine);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Máquina agregada correctamente'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al agregar: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceDark.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppConstants.spacingL),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Título
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.fitness_center,
+                          color: AppColors.info,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: AppConstants.spacingM),
+                      Expanded(
+                        child: Text(
+                          'Agregar Máquina',
+                          style: AppTypography.headlineSmall.copyWith(
+                            color: AppColors.textPrimaryDark,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: AppColors.textSecondaryDark),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppConstants.spacingL),
+
+                  // Nombre
+                  _buildLabel('Nombre *'),
+                  const SizedBox(height: AppConstants.spacingS),
+                  _buildTextField(_nameController, 'Nombre de la máquina'),
+                  const SizedBox(height: AppConstants.spacingM),
+
+                  // Descripción
+                  _buildLabel('Descripción *'),
+                  const SizedBox(height: AppConstants.spacingS),
+                  _buildTextField(
+                    _descriptionController,
+                    'Descripción de la máquina',
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+
+                  // Categoría y Tipo
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Categoría'),
+                            const SizedBox(height: AppConstants.spacingS),
+                            _buildDropdown<MachineCategory>(
+                              value: _selectedCategory,
+                              items: MachineCategory.values,
+                              onChanged: (v) => setState(() => _selectedCategory = v!),
+                              getLabel: (v) => v.displayName,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppConstants.spacingM),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Tipo'),
+                            const SizedBox(height: AppConstants.spacingS),
+                            _buildDropdown<MachineType>(
+                              value: _selectedType,
+                              items: MachineType.values,
+                              onChanged: (v) => setState(() => _selectedType = v!),
+                              getLabel: (v) => v.displayName,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+
+                  // Nivel de dificultad
+                  _buildLabel('Nivel de Dificultad'),
+                  const SizedBox(height: AppConstants.spacingS),
+                  _buildDropdown<DifficultyLevel>(
+                    value: _selectedLevel,
+                    items: DifficultyLevel.values,
+                    onChanged: (v) => setState(() => _selectedLevel = v!),
+                    getLabel: (v) => v.displayName,
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+
+                  // URL de imagen
+                  _buildLabel('URL de Imagen (opcional)'),
+                  const SizedBox(height: AppConstants.spacingS),
+                  _buildTextField(
+                    _imageUrlController,
+                    'https://images.unsplash.com/...',
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+
+                  // Series y Repeticiones
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Series'),
+                            const SizedBox(height: AppConstants.spacingS),
+                            _buildTextField(
+                              _setsController,
+                              '3',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppConstants.spacingM),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Repeticiones'),
+                            const SizedBox(height: AppConstants.spacingS),
+                            _buildTextField(
+                              _repsController,
+                              '12',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppConstants.spacingXL),
+
+                  // Botones
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isSaving ? null : () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimaryDark,
+                            side: const BorderSide(color: AppColors.glassBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('Cancelar'),
+                        ),
+                      ),
+                      const SizedBox(width: AppConstants.spacingM),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _saveMachine,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.info,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Agregar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: AppTypography.titleSmall.copyWith(
+        color: AppColors.textPrimaryDark,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint, {
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: AppTypography.bodyMedium.copyWith(
+        color: AppColors.textPrimaryDark,
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.textSecondaryDark,
+        ),
+        filled: true,
+        fillColor: AppColors.glassDark,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.glassBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.glassBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.info, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildDropdown<T>({
+    required T value,
+    required List<T> items,
+    required ValueChanged<T?> onChanged,
+    required String Function(T) getLabel,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.glassDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          dropdownColor: AppColors.surfaceDark,
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.textPrimaryDark,
+          ),
+          icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondaryDark),
+          items: items.map((item) {
+            return DropdownMenuItem<T>(
+              value: item,
+              child: Text(getLabel(item)),
+            );
+          }).toList(),
+          onChanged: onChanged,
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -75,12 +76,8 @@ class _LandingPageState extends State<LandingPage>
               ),
               // Sección de características alternadas
               SliverToBoxAdapter(child: _buildFeatureSections()),
-              // Stats Section
-              SliverToBoxAdapter(child: _buildStatsSection()),
               // Galería
               SliverToBoxAdapter(child: _buildGallerySection()),
-              // CTA Final
-              SliverToBoxAdapter(child: _buildFinalCTA()),
               // Footer
               SliverToBoxAdapter(child: _buildFooter()),
             ],
@@ -294,360 +291,532 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildStatsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: AppConstants.spacingXXL),
-      padding: const EdgeInsets.all(AppConstants.spacingXL),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.1),
-            AppColors.backgroundDark,
-            AppColors.primary.withValues(alpha: 0.05),
-          ],
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'MEXICAN BULKING EN NÚMEROS',
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.primary,
-              letterSpacing: 3,
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingXL),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isMobile = constraints.maxWidth < 600;
-              return Wrap(
-                spacing: AppConstants.spacingXL,
-                runSpacing: AppConstants.spacingXL,
-                alignment: WrapAlignment.center,
+  Widget _buildGallerySection() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        return Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 20 : AppConstants.spacingXL,
+                vertical: isMobile ? 32 : AppConstants.spacingXL,
+              ),
+              child: Column(
                 children: [
-                  _StatCard(
-                    value: '35+',
-                    label: 'Ejercicios',
-                    icon: Icons.fitness_center,
-                    width: isMobile ? constraints.maxWidth * 0.4 : 150,
+                  Text(
+                    'NUESTRAS INSTALACIONES',
+                    style: TextStyle(
+                      fontSize: isMobile ? 12 : 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      letterSpacing: isMobile ? 2.5 : 3,
+                    ),
                   ),
-                  _StatCard(
-                    value: '10+',
-                    label: 'Rutinas',
-                    icon: Icons.calendar_month,
-                    width: isMobile ? constraints.maxWidth * 0.4 : 150,
-                  ),
-                  _StatCard(
-                    value: '24/7',
-                    label: 'Acceso',
-                    icon: Icons.access_time,
-                    width: isMobile ? constraints.maxWidth * 0.4 : 150,
-                  ),
-                  _StatCard(
-                    value: '100%',
-                    label: 'Gratis',
-                    icon: Icons.star,
-                    width: isMobile ? constraints.maxWidth * 0.4 : 150,
+                  SizedBox(height: isMobile ? 10 : AppConstants.spacingS),
+                  Text(
+                    'Conoce Mexican Bulking Gym',
+                    style: TextStyle(
+                      fontSize: isMobile ? 26 : 32,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimaryDark,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGallerySection() {
-    final List<String> images = [
-      'assets/publicidad/p1.jpg',
-      'assets/publicidad/p2.jpg',
-      'assets/publicidad/p3.jpg',
-      'assets/publicidad/p4.jpg',
-      'assets/publicidad/p5.jpg',
-    ];
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingXL),
-          child: Column(
-            children: [
-              Text(
-                'NUESTRAS INSTALACIONES',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.primary,
-                  letterSpacing: 3,
-                ),
               ),
-              const SizedBox(height: AppConstants.spacingS),
-              Text(
-                'Conoce Mexican Bulking Gym',
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.textPrimaryDark,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 280,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingL),
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              return _GalleryCard(imagePath: images[index], index: index);
-            },
-          ),
-        ),
-        const SizedBox(height: AppConstants.spacingXL),
-      ],
-    );
-  }
-
-  Widget _buildFinalCTA() {
-    return Container(
-      margin: const EdgeInsets.all(AppConstants.spacingL),
-      padding: const EdgeInsets.all(AppConstants.spacingXL),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.2),
-            AppColors.primary.withValues(alpha: 0.05),
+            ),
+            _ImageCarousel(isMobile: isMobile),
+            SizedBox(height: isMobile ? 40 : AppConstants.spacingXL),
           ],
-        ),
-        borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Elementos flotantes decorativos
-          SizedBox(
-            height: 80,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                FloatingElement(
-                  amplitude: 8,
-                  child: const WeightPlate3D(size: 40),
-                ),
-                Positioned(
-                  left: 50,
-                  child: FloatingElement(
-                    amplitude: 6,
-                    delay: 0.3,
-                    child: const WeightPlate3D(size: 30, color: AppColors.primaryLight),
-                  ),
-                ),
-                Positioned(
-                  right: 50,
-                  child: FloatingElement(
-                    amplitude: 6,
-                    delay: 0.6,
-                    child: const WeightPlate3D(size: 30, color: AppColors.primaryDark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingL),
-          Text(
-            '¿Listo Para Transformarte?',
-            style: AppTypography.headlineMedium.copyWith(
-              color: AppColors.textPrimaryDark,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppConstants.spacingS),
-          Text(
-            'Únete a Mexican Bulking y comienza tu camino fitness hoy.',
-            style: AppTypography.bodyLarge.copyWith(
-              color: AppColors.textSecondaryDark,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppConstants.spacingXL),
-          // Botones
-          Wrap(
-            spacing: AppConstants.spacingM,
-            runSpacing: AppConstants.spacingM,
-            alignment: WrapAlignment.center,
-            children: [
-              _CTAButton(
-                text: 'COMENZAR AHORA',
-                icon: Icons.rocket_launch,
-                isPrimary: true,
-                onPressed: () => context.go(AppRoutes.login),
-              ),
-              _CTAButton(
-                text: 'Ya tengo cuenta',
-                icon: Icons.login,
-                isPrimary: false,
-                onPressed: () => context.go(AppRoutes.login),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingXL),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.glassBorder.withValues(alpha: 0.2),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 900;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 20 : 60,
+            vertical: isMobile ? 40 : 50,
           ),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Logo y nombre
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceDark,
+            border: Border(
+              top: BorderSide(
+                color: AppColors.glassBorder.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          child: Column(
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.glowPrimary,
-                      blurRadius: 15,
+              // Contenido principal - Horizontal en PC, Vertical en móvil
+              if (isMobile) ...[
+                // MÓVIL: Layout vertical original
+                _LocationCard(isMobile: true),
+                const SizedBox(height: 32),
+                // Redes sociales
+                Text(
+                  'Síguenos',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondaryDark,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _SocialButton(
+                      icon: Icons.camera_alt,
+                      gradient: const [Color(0xFF833AB4), Color(0xFFFD1D1D), Color(0xFFFCAF45)],
+                      url: AppConstants.instagramUrl,
+                      isMobile: true,
+                    ),
+                    const SizedBox(width: 20),
+                    _SocialButton(
+                      icon: Icons.facebook,
+                      gradient: const [Color(0xFF1877F2), Color(0xFF1877F2)],
+                      url: AppConstants.facebookUrl,
+                      isMobile: true,
                     ),
                   ],
                 ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    fit: BoxFit.cover,
+                const SizedBox(height: 28),
+                // Links legales
+                Wrap(
+                  spacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () => context.go('${AppRoutes.privacy}?from=landing'),
+                      child: Text(
+                        'Privacidad',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondaryDark,
+                        ),
+                      ),
+                    ),
+                    Text('•', style: TextStyle(color: AppColors.textSecondaryDark.withValues(alpha: 0.5))),
+                    TextButton(
+                      onPressed: () => context.go('${AppRoutes.terms}?from=landing'),
+                      child: Text(
+                        'Términos',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondaryDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Developer credit móvil
+                _buildDeveloperCredit(isMobile: true),
+                const SizedBox(height: 32),
+              ] else ...[
+                // PC: Layout horizontal
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Columna 1: Ubicación
+                    Expanded(
+                      flex: 3,
+                      child: _buildLocationSection(),
+                    ),
+                    const SizedBox(width: 40),
+                    // Columna 2: Redes Sociales
+                    Expanded(
+                      flex: 2,
+                      child: _buildSocialSection(context),
+                    ),
+                    const SizedBox(width: 40),
+                    // Columna 3: Legal
+                    Expanded(
+                      flex: 2,
+                      child: _buildLegalSection(context),
+                    ),
+                    const SizedBox(width: 40),
+                    // Columna 4: Developer
+                    Expanded(
+                      flex: 3,
+                      child: _buildDeveloperSection(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 60),
+              ],
+              // Separador
+              Container(
+                height: 1,
+                margin: EdgeInsets.symmetric(horizontal: isMobile ? 0 : 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      AppColors.primary.withValues(alpha: 0.3),
+                      Colors.transparent,
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: AppConstants.spacingM),
+              SizedBox(height: isMobile ? 24 : 50),
+              // Título grande MEXICAN BULKING - Estilo Discord
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calcular tamaño de fuente basado en el ancho disponible
+                  final maxWidth = constraints.maxWidth;
+                  final fontSize = isMobile ? maxWidth * 0.18 : maxWidth * 0.14;
+
+                  return Column(
+                    children: [
+                      Text(
+                        'MEXICAN',
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimaryDark.withValues(alpha: 0.35),
+                          letterSpacing: isMobile ? 4 : 12,
+                          height: 0.9,
+                        ),
+                      ),
+                      ShaderMask(
+                        shaderCallback: (bounds) => LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primaryLight,
+                            AppColors.primary,
+                          ],
+                        ).createShader(bounds),
+                        child: Text(
+                          'BULKING',
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: isMobile ? 6 : 16,
+                            height: 0.85,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              SizedBox(height: isMobile ? 16 : 24),
+              // Copyright
               Text(
-                'MEXICAN BULKING',
-                style: AppTypography.titleLarge.copyWith(
-                  color: AppColors.textPrimaryDark,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+                '© 2025 Mexican Bulking. Todos los derechos reservados.',
+                style: TextStyle(
+                  fontSize: isMobile ? 11 : 13,
+                  color: AppColors.textSecondaryDark.withValues(alpha: 0.5),
                 ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
-          const SizedBox(height: AppConstants.spacingXL),
-          // Ubicación
-          _LocationCard(),
-          const SizedBox(height: AppConstants.spacingXL),
-          // Redes sociales
-          Text(
-            'Síguenos',
-            style: AppTypography.titleMedium.copyWith(
-              color: AppColors.textSecondaryDark,
+        );
+      },
+    );
+  }
+
+  // Sección de ubicación para PC
+  Widget _buildLocationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'UBICACIÓN',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.location_on,
+                color: AppColors.primary,
+                size: 20,
+              ),
             ),
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _SocialButton(
-                icon: Icons.camera_alt,
-                gradient: const [Color(0xFF833AB4), Color(0xFFFD1D1D), Color(0xFFFCAF45)],
-                url: AppConstants.instagramUrl,
-              ),
-              const SizedBox(width: AppConstants.spacingL),
-              _SocialButton(
-                icon: Icons.facebook,
-                gradient: const [Color(0xFF1877F2), Color(0xFF1877F2)],
-                url: AppConstants.facebookUrl,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingXL),
-          // Links legales
-          Wrap(
-            spacing: AppConstants.spacingM,
-            children: [
-              TextButton(
-                onPressed: () => context.push(AppRoutes.privacyPolicy),
-                child: Text(
-                  'Privacidad',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondaryDark,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mexican Bulking Gym',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimaryDark,
+                    ),
                   ),
-                ),
-              ),
-              Text('•', style: TextStyle(color: AppColors.textSecondaryDark)),
-              TextButton(
-                onPressed: () => context.push(AppRoutes.termsConditions),
-                child: Text(
-                  'Términos',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondaryDark,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Calz. Aragón 14, Lindavista\n07300 Ciudad de México, CDMX',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondaryDark,
+                      height: 1.4,
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          // Copyright
-          Text(
-            '© 2025 Mexican Bulking. Todos los derechos reservados.',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryDark.withValues(alpha: 0.7),
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          // Developer credit
-          InkWell(
+          ],
+        ),
+        const SizedBox(height: 16),
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
             onTap: () async {
-              final Uri url = Uri.parse('https://chapingo.web.app/');
+              final Uri url = Uri.parse('https://maps.app.goo.gl/KspxQHHMhfrkfoSn6');
               if (await canLaunchUrl(url)) {
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               }
             },
-            borderRadius: BorderRadius.circular(AppConstants.radiusS),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingM,
-                vertical: AppConstants.spacingS,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.glassDark.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(AppConstants.radiusS),
-                border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.2)),
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.code, size: 14, color: AppColors.primary),
-                  const SizedBox(width: AppConstants.spacingS),
+                  Icon(
+                    Icons.map_outlined,
+                    color: AppColors.primary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    'Programado por Emilio Álvarez Herrera',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textSecondaryDark,
+                    'Ver en Google Maps',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(width: AppConstants.spacingXS),
-                  Icon(Icons.open_in_new, size: 12, color: AppColors.textSecondaryDark),
                 ],
               ),
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  // Sección de redes sociales para PC
+  Widget _buildSocialSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'SÍGUENOS',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _SocialButton(
+              icon: Icons.camera_alt,
+              gradient: const [Color(0xFF833AB4), Color(0xFFFD1D1D), Color(0xFFFCAF45)],
+              url: AppConstants.instagramUrl,
+              isMobile: false,
+            ),
+            const SizedBox(width: 16),
+            _SocialButton(
+              icon: Icons.facebook,
+              gradient: const [Color(0xFF1877F2), Color(0xFF1877F2)],
+              url: AppConstants.facebookUrl,
+              isMobile: false,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '@mexicanbulking',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondaryDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Sección legal para PC
+  Widget _buildLegalSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LEGAL',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildLegalLink(
+          'Política de Privacidad',
+          () => context.go('${AppRoutes.privacy}?from=landing'),
+        ),
+        const SizedBox(height: 12),
+        _buildLegalLink(
+          'Términos y Condiciones',
+          () => context.go('${AppRoutes.terms}?from=landing'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegalLink(String text, VoidCallback onTap) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondaryDark,
+            decoration: TextDecoration.underline,
+            decorationColor: AppColors.textSecondaryDark.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Sección developer para PC
+  Widget _buildDeveloperSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DESARROLLADO POR',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildDeveloperCredit(isMobile: false),
+      ],
+    );
+  }
+
+  // Developer credit widget reutilizable
+  Widget _buildDeveloperCredit({required bool isMobile}) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () async {
+          final Uri url = Uri.parse('https://chapingo.web.app/');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 20 : 20,
+            vertical: isMobile ? 14 : 14,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primary.withValues(alpha: 0.15),
+                AppColors.primaryLight.withValues(alpha: 0.1),
+                AppColors.glassDark.withValues(alpha: 0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.primaryDark,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.code_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 14),
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryLight,
+                  ],
+                ).createShader(bounds),
+                child: Text(
+                  'Emilio Álvarez Herrera',
+                  style: TextStyle(
+                    fontSize: isMobile ? 14 : 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(
+                Icons.arrow_outward_rounded,
+                size: 16,
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -791,7 +960,7 @@ class _BackgroundPainter extends CustomPainter {
       oldDelegate.animationValue != animationValue;
 }
 
-/// Hero Section
+/// Hero Section - Rediseñada estilo Discord móvil
 class _HeroSection extends StatelessWidget {
   final AnimationController animationController;
   final AnimationController floatController;
@@ -812,95 +981,96 @@ class _HeroSection extends StatelessWidget {
       height: size.height,
       child: Stack(
         children: [
-          // Elementos 3D flotantes - adaptados para móvil y desktop
-          // Mancuerna (arriba derecha en desktop, arriba derecha en móvil)
+          // Elementos 3D flotantes - más visibles y mejor posicionados para móvil
+          // Mancuerna (arriba derecha)
           Positioned(
             top: isMobile
-                ? size.height * 0.08 - scrollOffset * 0.2
+                ? size.height * 0.06 - scrollOffset * 0.15
                 : size.height * 0.15 - scrollOffset * 0.3,
-            right: isMobile ? 20 : size.width * 0.1,
+            right: isMobile ? 16 : size.width * 0.1,
             child: FloatingElement(
-              amplitude: isMobile ? 12 : 20,
+              amplitude: isMobile ? 15 : 20,
               duration: const Duration(seconds: 4),
               rotates: true,
               child: Opacity(
-                opacity: isMobile ? 0.7 : 0.6,
-                child: Dumbbell3D(size: isMobile ? 35 : 50),
+                opacity: isMobile ? 0.85 : 0.6,
+                child: Dumbbell3D(size: isMobile ? 42 : 50),
               ),
             ),
           ),
-          // Disco de pesa (izquierda)
+          // Disco de pesa (izquierda superior)
           Positioned(
             top: isMobile
-                ? size.height * 0.22 - scrollOffset * 0.15
+                ? size.height * 0.12 - scrollOffset * 0.1
                 : size.height * 0.6 - scrollOffset * 0.2,
-            left: isMobile ? 15 : size.width * 0.05,
+            left: isMobile ? 12 : size.width * 0.05,
             child: FloatingElement(
-              amplitude: isMobile ? 10 : 15,
+              amplitude: isMobile ? 12 : 15,
               duration: const Duration(milliseconds: 3500),
               delay: 0.5,
               child: Opacity(
-                opacity: isMobile ? 0.65 : 0.5,
-                child: WeightPlate3D(size: isMobile ? 45 : 60),
+                opacity: isMobile ? 0.8 : 0.5,
+                child: WeightPlate3D(size: isMobile ? 50 : 60),
               ),
             ),
           ),
           // Kettlebell (abajo derecha)
           Positioned(
             bottom: isMobile
-                ? size.height * 0.32 + scrollOffset * 0.1
+                ? size.height * 0.28 + scrollOffset * 0.08
                 : size.height * 0.2 + scrollOffset * 0.1,
-            right: isMobile ? 25 : size.width * 0.15,
+            right: isMobile ? 20 : size.width * 0.15,
             child: FloatingElement(
-              amplitude: isMobile ? 8 : 12,
+              amplitude: isMobile ? 10 : 12,
               duration: const Duration(milliseconds: 3800),
               delay: 0.3,
               child: Opacity(
-                opacity: isMobile ? 0.6 : 0.4,
-                child: Kettlebell3D(size: isMobile ? 35 : 45),
+                opacity: isMobile ? 0.75 : 0.4,
+                child: Kettlebell3D(size: isMobile ? 40 : 45),
               ),
             ),
           ),
           // Disco adicional para móvil (abajo izquierda)
           if (isMobile)
             Positioned(
-              bottom: size.height * 0.35 + scrollOffset * 0.05,
-              left: 30,
+              bottom: size.height * 0.32 + scrollOffset * 0.05,
+              left: 24,
               child: FloatingElement(
-                amplitude: 10,
+                amplitude: 12,
                 duration: const Duration(milliseconds: 3200),
                 delay: 0.7,
                 child: Opacity(
-                  opacity: 0.55,
-                  child: const WeightPlate3D(size: 35, color: AppColors.primaryLight),
+                  opacity: 0.7,
+                  child: const WeightPlate3D(size: 38, color: AppColors.primaryLight),
                 ),
               ),
             ),
-          // Contenido principal
+          // Contenido principal - mejor espaciado móvil
           Center(
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? AppConstants.spacingL : AppConstants.spacingXXL,
+                horizontal: isMobile ? 24 : AppConstants.spacingXXL,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  SizedBox(height: isMobile ? size.height * 0.12 : 0),
                   const Spacer(flex: 2),
-                  // Logo con glow
-                  _buildAnimatedLogo(),
-                  SizedBox(height: isMobile ? AppConstants.spacingL : AppConstants.spacingXL),
-                  // Título
+                  // Logo con glow - más grande en móvil
+                  _buildAnimatedLogo(isMobile),
+                  SizedBox(height: isMobile ? 28 : AppConstants.spacingXL),
+                  // Título - más impactante
                   _buildAnimatedTitle(isMobile),
-                  SizedBox(height: isMobile ? AppConstants.spacingM : AppConstants.spacingL),
+                  SizedBox(height: isMobile ? 20 : AppConstants.spacingL),
                   // Tagline
                   _buildAnimatedTagline(isMobile),
-                  SizedBox(height: isMobile ? AppConstants.spacingXL : AppConstants.spacingXXL),
-                  // CTA Button
-                  _buildAnimatedCTA(context),
+                  SizedBox(height: isMobile ? 36 : AppConstants.spacingXXL),
+                  // CTA Button - más prominente
+                  _buildAnimatedCTA(context, isMobile),
                   const Spacer(flex: 2),
                   // Scroll indicator
                   _buildScrollIndicator(),
-                  const SizedBox(height: AppConstants.spacingXL),
+                  SizedBox(height: isMobile ? 32 : AppConstants.spacingXL),
                 ],
               ),
             ),
@@ -910,7 +1080,7 @@ class _HeroSection extends StatelessWidget {
     );
   }
 
-  Widget _buildAnimatedLogo() {
+  Widget _buildAnimatedLogo(bool isMobile) {
     return FadeTransition(
       opacity: CurvedAnimation(
         parent: animationController,
@@ -928,17 +1098,17 @@ class _HeroSection extends StatelessWidget {
           animation: floatController,
           builder: (context, child) {
             return Transform.translate(
-              offset: Offset(0, sin(floatController.value * 2 * pi) * 5),
+              offset: Offset(0, sin(floatController.value * 2 * pi) * 6),
               child: Container(
-                width: 130,
-                height: 130,
+                width: isMobile ? 120 : 130,
+                height: isMobile ? 120 : 130,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.4),
-                      blurRadius: 40,
-                      spreadRadius: 10,
+                      color: AppColors.primary.withValues(alpha: 0.5),
+                      blurRadius: isMobile ? 50 : 40,
+                      spreadRadius: isMobile ? 15 : 10,
                     ),
                   ],
                 ),
@@ -975,13 +1145,14 @@ class _HeroSection extends StatelessWidget {
             Text(
               'MEXICAN',
               style: TextStyle(
-                fontSize: isMobile ? 40 : 64,
+                fontSize: isMobile ? 44 : 64,
                 fontWeight: FontWeight.w900,
                 color: AppColors.textPrimaryDark,
-                letterSpacing: isMobile ? 6 : 12,
+                letterSpacing: isMobile ? 8 : 12,
                 height: 1,
               ),
             ),
+            const SizedBox(height: 4),
             ShaderMask(
               shaderCallback: (bounds) => LinearGradient(
                 colors: [AppColors.primary, AppColors.primaryLight],
@@ -989,10 +1160,10 @@ class _HeroSection extends StatelessWidget {
               child: Text(
                 'BULKING',
                 style: TextStyle(
-                  fontSize: isMobile ? 40 : 64,
+                  fontSize: isMobile ? 44 : 64,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  letterSpacing: isMobile ? 8 : 16,
+                  letterSpacing: isMobile ? 10 : 16,
                   height: 1.1,
                 ),
               ),
@@ -1017,34 +1188,39 @@ class _HeroSection extends StatelessWidget {
           parent: animationController,
           curve: const Interval(0.4, 0.9, curve: Curves.easeOut),
         )),
-        child: Column(
-          children: [
-            Text(
-              AppConstants.appTagline,
-              style: TextStyle(
-                fontSize: isMobile ? 18 : 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimaryDark,
-                letterSpacing: 1.5,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: isMobile ? 300 : 500),
+          child: Column(
+            children: [
+              Text(
+                AppConstants.appTagline,
+                style: TextStyle(
+                  fontSize: isMobile ? 20 : 24,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimaryDark,
+                  letterSpacing: 1.2,
+                  height: 1.3,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppConstants.spacingXS),
-            Text(
-              AppConstants.appTaglineSecondary,
-              style: TextStyle(
-                fontSize: isMobile ? 14 : 18,
-                color: AppColors.textSecondaryDark,
+              SizedBox(height: isMobile ? 10 : AppConstants.spacingXS),
+              Text(
+                AppConstants.appTaglineSecondary,
+                style: TextStyle(
+                  fontSize: isMobile ? 15 : 18,
+                  color: AppColors.textSecondaryDark,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAnimatedCTA(BuildContext context) {
+  Widget _buildAnimatedCTA(BuildContext context, bool isMobile) {
     return FadeTransition(
       opacity: CurvedAnimation(
         parent: animationController,
@@ -1059,9 +1235,10 @@ class _HeroSection extends StatelessWidget {
           curve: const Interval(0.6, 1, curve: Curves.easeOut),
         )),
         child: _CTAButton(
-          text: 'EMPEZAR A ENTRENAR',
-          icon: Icons.fitness_center,
+          text: 'EMPEZAR AHORA',
+          icon: Icons.arrow_forward_rounded,
           isPrimary: true,
+          isMobile: isMobile,
           onPressed: () => context.go(AppRoutes.login),
         ),
       ),
@@ -1078,20 +1255,31 @@ class _HeroSection extends StatelessWidget {
         animation: floatController,
         builder: (context, child) {
           return Transform.translate(
-            offset: Offset(0, sin(floatController.value * 2 * pi) * 5),
+            offset: Offset(0, sin(floatController.value * 2 * pi) * 6),
             child: Column(
               children: [
                 Text(
                   'Desliza para explorar',
                   style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textSecondaryDark,
+                    color: AppColors.textSecondaryDark.withValues(alpha: 0.8),
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: AppConstants.spacingS),
-                Icon(
-                  Icons.keyboard_double_arrow_down,
-                  color: AppColors.primary,
-                  size: 28,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
                 ),
               ],
             ),
@@ -1102,7 +1290,7 @@ class _HeroSection extends StatelessWidget {
   }
 }
 
-/// Bloque de feature alternado
+/// Bloque de feature alternado - Rediseñado estilo Discord móvil
 class _FeatureBlock extends StatefulWidget {
   final String title;
   final String description;
@@ -1162,7 +1350,7 @@ class _FeatureBlockState extends State<_FeatureBlock>
       opacity: _controller,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: Offset(widget.imageOnLeft ? -0.1 : 0.1, 0),
+          begin: Offset(0, 0.08),
           end: Offset.zero,
         ).animate(CurvedAnimation(
           parent: _controller,
@@ -1170,8 +1358,8 @@ class _FeatureBlockState extends State<_FeatureBlock>
         )),
         child: Container(
           padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? AppConstants.spacingL : AppConstants.spacingXXL,
-            vertical: AppConstants.spacingXXL,
+            horizontal: isMobile ? 20 : AppConstants.spacingXXL,
+            vertical: isMobile ? 48 : AppConstants.spacingXXL,
           ),
           child: isMobile
               ? _buildMobileLayout(accentColor)
@@ -1182,27 +1370,8 @@ class _FeatureBlockState extends State<_FeatureBlock>
   }
 
   Widget _buildMobileLayout(Color accentColor) {
-    return Column(
-      children: [
-        Container(
-          height: 200,
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: AppConstants.spacingL),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-            gradient: RadialGradient(
-              colors: [
-                accentColor.withValues(alpha: 0.15),
-                Colors.transparent,
-              ],
-              radius: 1.5,
-            ),
-          ),
-          child: widget.illustration,
-        ),
-        _buildContent(accentColor),
-      ],
-    );
+    // En móvil solo mostramos el contenido de texto, sin las ilustraciones animadas
+    return _buildContent(accentColor, isMobile: true);
   }
 
   Widget _buildDesktopLayout(Color accentColor) {
@@ -1227,7 +1396,7 @@ class _FeatureBlockState extends State<_FeatureBlock>
       const SizedBox(width: AppConstants.spacingXXL),
       Expanded(
         flex: 5,
-        child: _buildContent(accentColor),
+        child: _buildContent(accentColor, isMobile: false),
       ),
     ];
 
@@ -1237,55 +1406,77 @@ class _FeatureBlockState extends State<_FeatureBlock>
     );
   }
 
-  Widget _buildContent(Color accentColor) {
+  Widget _buildContent(Color accentColor, {required bool isMobile}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Línea de acento más prominente
         Container(
-          width: 50,
-          height: 3,
+          width: isMobile ? 45 : 50,
+          height: isMobile ? 4 : 3,
           decoration: BoxDecoration(
             color: accentColor,
             borderRadius: BorderRadius.circular(2),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withValues(alpha: 0.5),
-                blurRadius: 8,
+                color: accentColor.withValues(alpha: 0.6),
+                blurRadius: 12,
+                spreadRadius: 1,
               ),
             ],
           ),
         ),
-        const SizedBox(height: AppConstants.spacingM),
+        SizedBox(height: isMobile ? 16 : AppConstants.spacingM),
+        // Título más grande en móvil
         Text(
           widget.title,
-          style: AppTypography.headlineSmall.copyWith(
+          style: TextStyle(
+            fontSize: isMobile ? 26 : 28,
+            fontWeight: FontWeight.w800,
             color: AppColors.textPrimaryDark,
-            fontWeight: FontWeight.bold,
+            height: 1.2,
+            letterSpacing: -0.3,
           ),
         ),
-        const SizedBox(height: AppConstants.spacingM),
+        SizedBox(height: isMobile ? 14 : AppConstants.spacingM),
+        // Descripción con mejor legibilidad
         Text(
           widget.description,
-          style: AppTypography.bodyMedium.copyWith(
+          style: TextStyle(
+            fontSize: isMobile ? 15 : 16,
             color: AppColors.textSecondaryDark,
-            height: 1.6,
+            height: 1.65,
+            letterSpacing: 0.1,
           ),
         ),
         if (widget.bulletPoints != null) ...[
-          const SizedBox(height: AppConstants.spacingL),
+          SizedBox(height: isMobile ? 20 : AppConstants.spacingL),
           ...widget.bulletPoints!.map((point) => Padding(
-                padding: const EdgeInsets.only(bottom: AppConstants.spacingS),
+                padding: EdgeInsets.only(bottom: isMobile ? 12 : AppConstants.spacingS),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(Icons.check_circle, color: accentColor, size: 18),
-                    const SizedBox(width: AppConstants.spacingS),
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: accentColor,
+                        size: isMobile ? 16 : 14,
+                      ),
+                    ),
+                    SizedBox(width: isMobile ? 12 : AppConstants.spacingS),
                     Expanded(
                       child: Text(
                         point,
-                        style: AppTypography.bodySmall.copyWith(
+                        style: TextStyle(
+                          fontSize: isMobile ? 14 : 13,
                           color: AppColors.textSecondaryDark,
+                          height: 1.4,
                         ),
                       ),
                     ),
@@ -1298,106 +1489,173 @@ class _FeatureBlockState extends State<_FeatureBlock>
   }
 }
 
-/// Card de estadística
-class _StatCard extends StatelessWidget {
-  final String value;
-  final String label;
-  final IconData icon;
-  final double width;
+/// Carrusel de imágenes con auto-scroll - Mejorado para móvil
+class _ImageCarousel extends StatefulWidget {
+  final bool isMobile;
 
-  const _StatCard({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.width,
-  });
+  const _ImageCarousel({this.isMobile = false});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(AppConstants.spacingL),
-      decoration: BoxDecoration(
-        color: AppColors.glassDark.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.primary, size: 32),
-          const SizedBox(height: AppConstants.spacingS),
-          Text(
-            value,
-            style: AppTypography.headlineMedium.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_ImageCarousel> createState() => _ImageCarouselState();
 }
 
-/// Card de galería
-class _GalleryCard extends StatelessWidget {
-  final String imagePath;
-  final int index;
+class _ImageCarouselState extends State<_ImageCarousel> {
+  late PageController _pageController;
+  Timer? _autoScrollTimer;
+  int _currentPage = 0;
 
-  const _GalleryCard({
-    required this.imagePath,
-    required this.index,
-  });
+  final List<String> _images = const [
+    'assets/publicidad/p1.jpg',
+    'assets/publicidad/p2.jpg',
+    'assets/publicidad/p3.jpg',
+    'assets/publicidad/p4.jpg',
+    'assets/publicidad/p5.jpg',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: widget.isMobile ? 0.88 : 0.85);
+    _startAutoScroll();
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_pageController.hasClients) {
+        final nextPage = (_currentPage + 1) % _images.length;
+        _pageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+  }
+
+  void _goToPage(int page) {
+    _pageController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 220,
-      margin: const EdgeInsets.only(right: AppConstants.spacingM),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.isMobile ? 280 : 320,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: _onPageChanged,
+            itemCount: _images.length,
+            itemBuilder: (context, index) {
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  double scale = 1.0;
+                  if (_pageController.position.haveDimensions) {
+                    final page = _pageController.page ?? _currentPage.toDouble();
+                    scale = (1 - (page - index).abs() * 0.12).clamp(0.88, 1.0);
+                  }
+                  return Transform.scale(
+                    scale: scale,
+                    child: child,
+                  );
+                },
+                child: Container(
+                  margin: EdgeInsets.symmetric(
+                    horizontal: widget.isMobile ? 6 : AppConstants.spacingS,
+                    vertical: widget.isMobile ? 12 : AppConstants.spacingM,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(widget.isMobile ? 20 : AppConstants.radiusXL),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: widget.isMobile ? 24 : 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(widget.isMobile ? 20 : AppConstants.radiusXL),
+                    child: Image.asset(
+                      _images[index],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.surfaceDark,
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: AppColors.textSecondaryDark,
+                            size: 48,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        child: Image.asset(
-          imagePath,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: AppColors.surfaceDark,
-            child: const Center(
-              child: Icon(
-                Icons.image_not_supported,
-                color: AppColors.textSecondaryDark,
-                size: 48,
+        ),
+        SizedBox(height: widget.isMobile ? 20 : AppConstants.spacingM),
+        // Indicadores de página mejorados
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _images.length,
+            (index) => GestureDetector(
+              onTap: () => _goToPage(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: EdgeInsets.symmetric(horizontal: widget.isMobile ? 5 : 4),
+                width: _currentPage == index ? (widget.isMobile ? 28 : 24) : (widget.isMobile ? 10 : 8),
+                height: widget.isMobile ? 10 : 8,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(widget.isMobile ? 5 : 4),
+                  color: _currentPage == index
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.25),
+                  boxShadow: _currentPage == index
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.5),
+                            blurRadius: 10,
+                          ),
+                        ]
+                      : null,
+                ),
               ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-/// Botón CTA
+/// Botón CTA - Rediseñado estilo Discord
 class _CTAButton extends StatefulWidget {
   final String text;
   final IconData icon;
   final bool isPrimary;
+  final bool isMobile;
   final VoidCallback onPressed;
 
   const _CTAButton({
@@ -1405,6 +1663,7 @@ class _CTAButton extends StatefulWidget {
     required this.icon,
     required this.isPrimary,
     required this.onPressed,
+    this.isMobile = false,
   });
 
   @override
@@ -1413,72 +1672,89 @@ class _CTAButton extends StatefulWidget {
 
 class _CTAButtonState extends State<_CTAButton> {
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = widget.isMobile
+        ? (widget.isPrimary ? 36.0 : 28.0)
+        : (widget.isPrimary ? 32.0 : 24.0);
+    final verticalPadding = widget.isMobile
+        ? (widget.isPrimary ? 18.0 : 14.0)
+        : (widget.isPrimary ? 16.0 : 12.0);
+    final fontSize = widget.isMobile
+        ? (widget.isPrimary ? 16.0 : 14.0)
+        : (widget.isPrimary ? 15.0 : 13.0);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 150),
           padding: EdgeInsets.symmetric(
-            horizontal: widget.isPrimary ? 32 : 24,
-            vertical: widget.isPrimary ? 18 : 14,
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
           decoration: BoxDecoration(
             gradient: widget.isPrimary
                 ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                     colors: _isHovered
                         ? [AppColors.primaryLight, AppColors.primary]
-                        : [AppColors.primary, AppColors.primaryDark],
+                        : [AppColors.primary, AppColors.primary],
                   )
                 : null,
             color: widget.isPrimary ? null : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+            borderRadius: BorderRadius.circular(widget.isMobile ? 14 : 12),
             border: widget.isPrimary
                 ? null
                 : Border.all(
                     color: _isHovered
                         ? AppColors.primary
-                        : AppColors.glassBorder,
+                        : AppColors.glassBorder.withValues(alpha: 0.5),
                     width: 1.5,
                   ),
-            boxShadow: widget.isPrimary && _isHovered
+            boxShadow: widget.isPrimary
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      spreadRadius: 2,
+                      color: AppColors.primary.withValues(alpha: _isHovered ? 0.5 : 0.35),
+                      blurRadius: _isHovered ? 24 : 16,
+                      spreadRadius: _isHovered ? 2 : 0,
+                      offset: const Offset(0, 4),
                     ),
                   ]
                 : null,
           ),
-          transform: _isHovered
-              ? Matrix4.translationValues(0.0, -2.0, 0.0)
-              : Matrix4.identity(),
+          transform: _isPressed
+              ? Matrix4.translationValues(0.0, 2.0, 0.0)
+              : (_isHovered ? Matrix4.translationValues(0.0, -2.0, 0.0) : Matrix4.identity()),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                widget.icon,
-                color: widget.isPrimary
-                    ? AppColors.backgroundDark
-                    : (_isHovered ? AppColors.primary : AppColors.textPrimaryDark),
-                size: 20,
-              ),
-              const SizedBox(width: AppConstants.spacingS),
               Text(
                 widget.text,
                 style: TextStyle(
                   color: widget.isPrimary
                       ? AppColors.backgroundDark
                       : (_isHovered ? AppColors.primary : AppColors.textPrimaryDark),
-                  fontWeight: FontWeight.bold,
-                  fontSize: widget.isPrimary ? 16 : 14,
-                  letterSpacing: 1,
+                  fontWeight: FontWeight.w700,
+                  fontSize: fontSize,
+                  letterSpacing: 1.2,
                 ),
+              ),
+              SizedBox(width: widget.isMobile ? 10 : 8),
+              Icon(
+                widget.icon,
+                color: widget.isPrimary
+                    ? AppColors.backgroundDark
+                    : (_isHovered ? AppColors.primary : AppColors.textPrimaryDark),
+                size: widget.isMobile ? 20 : 18,
               ),
             ],
           ),
@@ -1488,19 +1764,23 @@ class _CTAButtonState extends State<_CTAButton> {
   }
 }
 
-/// Card de ubicación
+/// Card de ubicación - Mejorada para móvil
 class _LocationCard extends StatelessWidget {
+  final bool isMobile;
+
+  const _LocationCard({this.isMobile = false});
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(maxWidth: 500),
-      padding: const EdgeInsets.all(AppConstants.spacingL),
+      padding: EdgeInsets.all(isMobile ? 18 : AppConstants.spacingL),
       decoration: BoxDecoration(
-        color: AppColors.glassDark.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+        color: AppColors.glassDark.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(isMobile ? 18 : AppConstants.radiusL),
         border: Border.all(
-          color: AppColors.glassBorder.withValues(alpha: 0.2),
+          color: AppColors.glassBorder.withValues(alpha: 0.15),
         ),
       ),
       child: Column(
@@ -1508,34 +1788,37 @@ class _LocationCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(isMobile ? 10 : 12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(isMobile ? 12 : AppConstants.radiusM),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.location_on,
                   color: AppColors.primary,
-                  size: 24,
+                  size: isMobile ? 22 : 24,
                 ),
               ),
-              const SizedBox(width: AppConstants.spacingM),
+              SizedBox(width: isMobile ? 14 : AppConstants.spacingM),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Mexican Bulking Gym',
-                      style: AppTypography.titleMedium.copyWith(
+                      style: TextStyle(
+                        fontSize: isMobile ? 16 : 18,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimaryDark,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isMobile ? 4 : 4),
                     Text(
                       'Calz. Aragón 14, Lindavista\n07300 Ciudad de México, CDMX',
-                      style: AppTypography.bodySmall.copyWith(
+                      style: TextStyle(
+                        fontSize: isMobile ? 13 : 14,
                         color: AppColors.textSecondaryDark,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -1543,7 +1826,7 @@ class _LocationCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppConstants.spacingL),
+          SizedBox(height: isMobile ? 18 : AppConstants.spacingL),
           // Mapa clickeable
           GestureDetector(
             onTap: () async {
@@ -1553,16 +1836,16 @@ class _LocationCard extends StatelessWidget {
               }
             },
             child: Container(
-              height: 150,
+              height: isMobile ? 140 : 150,
               width: double.infinity,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                borderRadius: BorderRadius.circular(isMobile ? 14 : AppConstants.radiusM),
                 border: Border.all(
-                  color: AppColors.glassBorder.withValues(alpha: 0.3),
+                  color: AppColors.glassBorder.withValues(alpha: 0.2),
                 ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                borderRadius: BorderRadius.circular(isMobile ? 14 : AppConstants.radiusM),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -1582,31 +1865,38 @@ class _LocationCard extends StatelessWidget {
                     ),
                     // Overlay con botón
                     Positioned(
-                      bottom: 8,
-                      right: 8,
+                      bottom: isMobile ? 10 : 8,
+                      right: isMobile ? 10 : 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 14 : 12,
+                          vertical: isMobile ? 8 : 6,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(isMobile ? 22 : 20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.open_in_new,
                               color: AppColors.backgroundDark,
-                              size: 14,
+                              size: isMobile ? 14 : 14,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: isMobile ? 6 : 4),
                             Text(
                               'Ver en Maps',
-                              style: AppTypography.labelSmall.copyWith(
+                              style: TextStyle(
+                                fontSize: isMobile ? 12 : 12,
+                                fontWeight: FontWeight.w700,
                                 color: AppColors.backgroundDark,
-                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
@@ -1624,16 +1914,18 @@ class _LocationCard extends StatelessWidget {
   }
 }
 
-/// Botón de red social
+/// Botón de red social - Mejorado para móvil
 class _SocialButton extends StatefulWidget {
   final IconData icon;
   final List<Color> gradient;
   final String url;
+  final bool isMobile;
 
   const _SocialButton({
     required this.icon,
     required this.gradient,
     required this.url,
+    this.isMobile = false,
   });
 
   @override
@@ -1642,13 +1934,19 @@ class _SocialButton extends StatefulWidget {
 
 class _SocialButtonState extends State<_SocialButton> {
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final size = widget.isMobile ? 54.0 : 56.0;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
         onTap: () async {
           final Uri url = Uri.parse(widget.url);
           if (await canLaunchUrl(url)) {
@@ -1656,31 +1954,33 @@ class _SocialButtonState extends State<_SocialButton> {
           }
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 56,
-          height: 56,
+          duration: const Duration(milliseconds: 150),
+          width: size,
+          height: size,
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: widget.gradient),
-            borderRadius: BorderRadius.circular(AppConstants.radiusM),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: widget.gradient.first.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: widget.gradient.first.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                    ),
-                  ],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.gradient,
+            ),
+            borderRadius: BorderRadius.circular(widget.isMobile ? 14 : AppConstants.radiusM),
+            boxShadow: [
+              BoxShadow(
+                color: widget.gradient.first.withValues(alpha: _isHovered ? 0.5 : 0.35),
+                blurRadius: _isHovered ? 20 : 12,
+                spreadRadius: _isHovered ? 2 : 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          transform: _isHovered
-              ? Matrix4.diagonal3Values(1.1, 1.1, 1.0)
-              : Matrix4.identity(),
-          child: Icon(widget.icon, color: Colors.white, size: 28),
+          transform: _isPressed
+              ? Matrix4.diagonal3Values(0.95, 0.95, 1.0)
+              : (_isHovered ? Matrix4.diagonal3Values(1.08, 1.08, 1.0) : Matrix4.identity()),
+          child: Icon(
+            widget.icon,
+            color: Colors.white,
+            size: widget.isMobile ? 26 : 28,
+          ),
         ),
       ),
     );

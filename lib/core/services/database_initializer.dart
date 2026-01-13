@@ -77,13 +77,19 @@ class DatabaseInitializer {
 
 /// Extensión para inicialización rápida desde cualquier parte de la app
 extension FirebaseServiceExtensions on FirebaseService {
-  /// Inicializa la base de datos si es necesario
+  /// Inicializa la base de datos si es necesario y siempre verifica rutinas faltantes
   Future<void> initializeIfNeeded() async {
     final initializer = DatabaseInitializer(this);
+    final migrationService = MigrationService(this);
 
     final isInitialized = await initializer.isDatabaseInitialized();
     if (!isInitialized) {
+      // Primera vez: inicializar todo
       await initializer.initializeDatabase();
+    } else {
+      // Ya inicializado: pero siempre verificar rutinas faltantes
+      // Esto asegura que nuevas rutinas agregadas al código se añadan a Firebase
+      await migrationService.migrateRoutines();
     }
   }
 }

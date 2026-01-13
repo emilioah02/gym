@@ -33,6 +33,37 @@ class _TrainerClientsPageState extends ConsumerState<TrainerClientsPage> {
   Widget build(BuildContext context) {
     final clientsAsync = ref.watch(clientsProvider);
     final searchQuery = ref.watch(clientSearchQueryProvider);
+    final cachedClients = ref.watch(cachedClientsProvider);
+
+    // Actualizar caché cuando hay datos nuevos
+    ref.listen<AsyncValue<List<UserModel>>>(clientsProvider, (_, next) {
+      if (next.hasValue && next.value != null) {
+        ref.read(cachedClientsProvider.notifier).state = next.value;
+      }
+    });
+
+    // Usar datos cacheados si el provider está cargando o tiene error
+    final List<UserModel> clients;
+    final bool isLoading;
+    final bool hasError;
+
+    if (clientsAsync.hasValue) {
+      clients = clientsAsync.value!;
+      isLoading = false;
+      hasError = false;
+    } else if (cachedClients != null) {
+      // Usar caché mientras carga o si hay error
+      clients = cachedClients;
+      isLoading = clientsAsync.isLoading;
+      hasError = false; // No mostrar error si tenemos caché
+    } else {
+      // Primera carga sin caché
+      clients = [];
+      isLoading = clientsAsync.isLoading;
+      hasError = clientsAsync.hasError;
+    }
+
+    final filteredClients = _filterClients(clients, searchQuery);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
@@ -44,26 +75,74 @@ class _TrainerClientsPageState extends ConsumerState<TrainerClientsPage> {
               _buildAppBar(),
               SliverToBoxAdapter(child: _buildSearchBar()),
               SliverToBoxAdapter(child: _buildFilterChips()),
-              SliverToBoxAdapter(child: _buildStats(clientsAsync)),
-              clientsAsync.when(
-                data: (clients) {
-                  final filteredClients = _filterClients(clients, searchQuery);
-                  return _buildClientsList(filteredClients);
-                },
-                loading: () => const SliverFillRemaining(
+              SliverToBoxAdapter(child: _buildStats(clients)),
+              // Mostrar lista directamente, sin estados de carga
+              if (hasError && clients.isEmpty)
+                SliverFillRemaining(
                   child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingM),
+                        Text(
+                          'Error al cargar clientes',
+                          style: AppTypography.titleMedium.copyWith(
+                            color: AppColors.textPrimaryDark,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingS),
+                        Text(
+                          'No se pudieron cargar los clientes.',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textSecondaryDark,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingL),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.invalidate(clientsProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Reintentar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.backgroundDark,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.spacingL,
+                              vertical: AppConstants.spacingM,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                error: (error, _) => SliverFillRemaining(
-                  child: Center(
-                    child: Text('Error: $error', style: AppTypography.bodyMediumDark),
-                  ),
-                ),
-              ),
+                )
+              else
+                _buildClientsList(filteredClients),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
+          // Indicador sutil de actualización en la parte superior
+          if (isLoading && clients.isNotEmpty)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                color: AppColors.primary,
+              ),
+            ),
         ],
       ),
     );
@@ -85,75 +164,82 @@ class _TrainerClientsPageState extends ConsumerState<TrainerClientsPage> {
   }
 
   SliverAppBar _buildAppBar() {
-    final unreadCountAsync = ref.watch(unreadNotificationsCountProvider);
-
     return SliverAppBar(
+      expandedHeight: 100,
       floating: true,
+      pinned: false,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      title: Text(
-        'Clientes',
-        style: AppTypography.headlineMedium.copyWith(
-          color: AppColors.textPrimaryDark,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      actions: [
-        // Botón de notificaciones con badge
-        Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: unreadCountAsync.when(
-            data: (count) => Stack(
+      automaticallyImplyLeading: false,
+      flexibleSpace: FlexibleSpaceBar(
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondaryDark),
-                  onPressed: () => context.push('/trainer/notifications'),
-                ),
-                if (count > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.error,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        count > 9 ? '9+' : '$count',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
                         ),
-                        textAlign: TextAlign.center,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.people_rounded,
+                        color: Colors.white,
+                        size: 22,
                       ),
                     ),
-                  ),
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Clientes',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Gestiona tus clientes',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingS),
               ],
             ),
-            loading: () => IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondaryDark),
-              onPressed: () => context.push('/trainer/notifications'),
-            ),
-            error: (_, __) => IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondaryDark),
-              onPressed: () => context.push('/trainer/notifications'),
-            ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: IconButton(
-            icon: const Icon(Icons.sort, color: AppColors.textSecondaryDark),
-            onPressed: () => _showSortOptions(),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -217,49 +303,43 @@ class _TrainerClientsPageState extends ConsumerState<TrainerClientsPage> {
     );
   }
 
-  Widget _buildStats(AsyncValue<List<UserModel>> clientsAsync) {
-    return clientsAsync.when(
-      data: (clients) {
-        final total = clients.length;
-        final conRutina = clients.where((c) => c.rutinaAsignadaId != null).length;
-        final sinRutina = total - conRutina;
+  Widget _buildStats(List<UserModel> clients) {
+    final total = clients.length;
+    final conRutina = clients.where((c) => c.rutinaAsignadaId != null).length;
+    final sinRutina = total - conRutina;
 
-        return Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingM),
-          child: Row(
-            children: [
-              Expanded(
-                child: _StatCard(
-                  icon: Icons.people,
-                  value: '$total',
-                  label: 'Total',
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingS),
-              Expanded(
-                child: _StatCard(
-                  icon: Icons.check_circle,
-                  value: '$conRutina',
-                  label: 'Con rutina',
-                  color: AppColors.success,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingS),
-              Expanded(
-                child: _StatCard(
-                  icon: Icons.warning,
-                  value: '$sinRutina',
-                  label: 'Sin rutina',
-                  color: AppColors.warning,
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.all(AppConstants.spacingM),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatCard(
+              icon: Icons.people,
+              value: '$total',
+              label: 'Total',
+              color: AppColors.primary,
+            ),
           ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+          const SizedBox(width: AppConstants.spacingS),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.check_circle,
+              value: '$conRutina',
+              label: 'Con rutina',
+              color: AppColors.success,
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingS),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.warning,
+              value: '$sinRutina',
+              label: 'Sin rutina',
+              color: AppColors.warning,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -340,11 +420,11 @@ class _TrainerClientsPageState extends ConsumerState<TrainerClientsPage> {
           }
 
           return SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 450, // Ancho máximo por tarjeta
               crossAxisSpacing: AppConstants.spacingM,
               mainAxisSpacing: AppConstants.spacingM,
-              childAspectRatio: 2.8, // Proporción de las cards
+              mainAxisExtent: 100, // Altura fija que permite el contenido
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) {
@@ -518,7 +598,7 @@ class _FilterStatusChip extends StatelessWidget {
   }
 }
 
-/// Card de cliente
+/// Card de cliente con diseño autoajustable
 class _ClientCard extends StatelessWidget {
   final UserModel client;
   final VoidCallback onTap;
@@ -536,11 +616,15 @@ class _ClientCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
       child: GlassCard(
         onTap: onTap,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingM,
+          vertical: AppConstants.spacingS,
+        ),
         child: Row(
           children: [
-            // Avatar
+            // Avatar - tamaño fijo
             CircleAvatar(
-              radius: 28,
+              radius: 24,
               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
               backgroundImage: client.photoUrl != null
                   ? CachedNetworkImageProvider(client.photoUrl!)
@@ -548,20 +632,23 @@ class _ClientCard extends StatelessWidget {
               child: client.photoUrl == null
                   ? Text(
                       (client.nombre ?? 'U')[0].toUpperCase(),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 20,
+                        fontSize: 18,
                       ),
                     )
                   : null,
             ),
-            const SizedBox(width: AppConstants.spacingM),
-            // Info
+            const SizedBox(width: AppConstants.spacingS),
+            // Info - flexible
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Primera fila: Nombre + Badge estado
                   Row(
                     children: [
                       Expanded(
@@ -571,13 +658,16 @@ class _ClientCard extends StatelessWidget {
                             color: AppColors.textPrimaryDark,
                             fontWeight: FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      // Estado
+                      const SizedBox(width: 8),
+                      // Badge de estado
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
-                          vertical: 4,
+                          vertical: 3,
                         ),
                         decoration: BoxDecoration(
                           color: hasRoutine
@@ -597,6 +687,7 @@ class _ClientCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
+                  // Segunda fila: Info secundaria con Flexible
                   Row(
                     children: [
                       if (client.genero != null) ...[
@@ -609,7 +700,7 @@ class _ClientCard extends StatelessWidget {
                               ? AppColors.info
                               : AppColors.error,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                       ],
                       if (client.edad != null) ...[
                         Text(
@@ -618,36 +709,46 @@ class _ClientCard extends StatelessWidget {
                             color: AppColors.textSecondaryDark,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                       ],
-                      Icon(
+                      const Icon(
                         Icons.access_time,
                         size: 14,
                         color: AppColors.textSecondaryDark,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        client.ultimoEntrenamientoTexto,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondaryDark,
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: Text(
+                          client.ultimoEntrenamientoTexto,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondaryDark,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
+                  // Tercera fila: Objetivo (solo si existe y hay espacio)
                   if (client.objetivo != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.flag,
-                          size: 14,
+                          size: 12,
                           color: AppColors.primary,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          client.objetivo!.displayName,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.primary,
+                        Flexible(
+                          child: Text(
+                            client.objetivo!.displayName,
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -656,9 +757,11 @@ class _ClientCard extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(width: 4),
             const Icon(
               Icons.chevron_right,
               color: AppColors.textSecondaryDark,
+              size: 20,
             ),
           ],
         ),

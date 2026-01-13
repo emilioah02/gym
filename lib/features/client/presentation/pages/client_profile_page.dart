@@ -47,13 +47,6 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
     super.dispose();
   }
 
-  void _initControllers(UserModel user) {
-    _nombreController.text = user.nombre ?? '';
-    _edadController.text = user.edad?.toString() ?? '';
-    _alturaController.text = user.altura?.toString() ?? '';
-    _pesoController.text = user.peso?.toString() ?? '';
-  }
-
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(userModelProvider);
@@ -108,37 +101,111 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
   }
 
   SliverAppBar _buildAppBar() {
-    final user = ref.watch(userModelProvider).valueOrNull;
-    final isTestUser = user?.uid.contains('_test_client') ?? false;
+    // Verificar si es usuario de prueba usando activeUserIdProvider directamente
+    // Esto es más robusto que verificar el uid del modelo
+    final activeUserId = ref.watch(activeUserIdProvider);
+    final isTestUser = activeUserId != null && activeUserId.contains('_test_client');
 
     return SliverAppBar(
+      expandedHeight: 100,
       floating: true,
+      pinned: false,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      title: Text(
-        'Perfil',
-        style: AppTypography.headlineMedium.copyWith(
-          color: AppColors.textPrimaryDark,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      actions: [
-        // Botón para volver al modo entrenador (solo para usuarios de prueba)
-        if (isTestUser)
-          Padding(
-            padding: const EdgeInsets.only(right: AppConstants.spacingM),
-            child: IconButton(
-              icon: const Icon(Icons.admin_panel_settings, color: AppColors.warning),
-              tooltip: 'Volver al modo entrenador',
-              onPressed: () {
-                // Restablecer el ID de usuario activo a null (usuario real)
-                ref.read(activeUserIdProvider.notifier).state = null;
-                // Navegar al modo entrenador
-                context.go('/trainer');
-              },
+      automaticallyImplyLeading: false,
+      flexibleSpace: FlexibleSpaceBar(
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Perfil',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Tu información personal',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Botón para volver al modo entrenador (solo para usuarios de prueba)
+                    if (isTestUser)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.admin_panel_settings,
+                          color: AppColors.warning,
+                        ),
+                        tooltip: 'Volver al modo entrenador',
+                        onPressed: () {
+                          // Limpiar caché de rol y modelo antes de cambiar de usuario
+                          ref.read(cachedUserRoleProvider.notifier).state = null;
+                          ref.read(cachedUserModelProvider.notifier).state = null;
+
+                          // Restablecer el ID de usuario activo a null (usuario real)
+                          ref.read(activeUserIdProvider.notifier).state = null;
+
+                          // Invalidar providers para forzar recarga con el usuario real
+                          ref.invalidate(userRoleProvider);
+                          ref.invalidate(userModelProvider);
+
+                          // Navegar al modo entrenador
+                          context.go('/trainer');
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingS),
+              ],
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 
@@ -297,7 +364,9 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                 ),
                 child: Icon(
                   hasActiveMembership ? Icons.card_membership : Icons.warning,
-                  color: hasActiveMembership ? AppColors.success : AppColors.error,
+                  color: hasActiveMembership
+                      ? AppColors.success
+                      : AppColors.error,
                 ),
               ),
               const SizedBox(width: AppConstants.spacingM),
@@ -340,7 +409,9 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
               _InfoRow(
                 icon: Icons.payment,
                 label: 'Fecha de pago',
-                value: DateFormat('dd/MM/yyyy').format(user.fechaPagoMembresia!),
+                value: DateFormat(
+                  'dd/MM/yyyy',
+                ).format(user.fechaPagoMembresia!),
               ),
             if (user.fechaFinMembresia != null)
               _InfoRow(
@@ -364,7 +435,9 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                   children: [
                     Icon(
                       isExpiringSoon ? Icons.warning : Icons.check_circle,
-                      color: isExpiringSoon ? AppColors.warning : AppColors.success,
+                      color: isExpiringSoon
+                          ? AppColors.warning
+                          : AppColors.success,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -373,7 +446,9 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                           ? '¡Renueva pronto! $daysRemaining días restantes'
                           : '$daysRemaining días restantes',
                       style: TextStyle(
-                        color: isExpiringSoon ? AppColors.warning : AppColors.success,
+                        color: isExpiringSoon
+                            ? AppColors.warning
+                            : AppColors.success,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -716,10 +791,7 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                   color: AppColors.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.share,
-                  color: AppColors.primary,
-                ),
+                child: const Icon(Icons.share, color: AppColors.primary),
               ),
               const SizedBox(width: AppConstants.spacingM),
               Expanded(
@@ -830,17 +902,21 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
             ],
           ),
         ),
+        SizedBox(height: 100),
       ],
     );
   }
 
   Future<void> _shareApp() async {
     try {
-      await Share.share(
-        '¡Únete a Mexican Bulking! La mejor app para transformar tu cuerpo. '
-        'Descarga la app y comienza tu transformación hoy: '
-        '[Link de la app]',
-        subject: 'Mexican Bulking - Tu gimnasio en tu bolsillo',
+      await SharePlus.instance.share(
+        ShareParams(
+          text:
+              '¡Únete a Mexican Bulking! La mejor app para transformar tu cuerpo. '
+              'Descarga la app y comienza tu transformación hoy: '
+              '[Link de la app]',
+          subject: 'Mexican Bulking - Tu gimnasio en tu bolsillo',
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -912,21 +988,32 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...MembershipType.values.map((type) => RadioListTile<MembershipType>(
-                  title: Text(
-                    type.displayName,
-                    style: AppTypography.bodyMediumDark,
-                  ),
-                  value: type,
+                RadioGroup<MembershipType>(
                   groupValue: selectedType,
-                  fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return AppColors.primary;
-                    }
-                    return AppColors.textSecondaryDark;
-                  }),
                   onChanged: (value) => setState(() => selectedType = value),
-                )),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: MembershipType.values
+                        .map(
+                          (type) => RadioListTile<MembershipType>(
+                            title: Text(
+                              type.displayName,
+                              style: AppTypography.bodyMediumDark,
+                            ),
+                            value: type,
+                            fillColor: WidgetStateProperty.resolveWith<Color>((
+                              states,
+                            ) {
+                              if (states.contains(WidgetState.selected)) {
+                                return AppColors.primary;
+                              }
+                              return AppColors.textSecondaryDark;
+                            }),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Fecha de Pago',
@@ -965,7 +1052,10 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today, color: AppColors.primary),
+                        const Icon(
+                          Icons.calendar_today,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 12),
                         Text(
                           paymentDate != null
@@ -999,7 +1089,8 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                           DateFormat('dd/MM/yyyy').format(
                             DateTime(
                               paymentDate!.year,
-                              paymentDate!.month + selectedType!.durationInMonths,
+                              paymentDate!.month +
+                                  selectedType!.durationInMonths,
                               paymentDate!.day,
                             ),
                           ),
@@ -1030,7 +1121,9 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
                       );
 
                       try {
-                        final firebaseService = ref.read(firebaseServiceProvider);
+                        final firebaseService = ref.read(
+                          firebaseServiceProvider,
+                        );
                         await firebaseService.updateUserProfile(user.uid, {
                           'tipoMembresia': selectedType!.value,
                           'fechaPagoMembresia': paymentDate,
@@ -1116,7 +1209,7 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
               ),
               _PaymentInfoTile(
                 label: 'Titular',
-                value: 'Luis Emilio Álvarez Herrera',
+                value: 'Diego Peniche',
                 icon: Icons.person,
               ),
             ],
@@ -1218,20 +1311,30 @@ class _ClientProfilePageState extends ConsumerState<ClientProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceDark,
-        title: Text('Cerrar Sesión', style: AppTypography.titleLargeDark),
+        title: Text(
+          '¿Cerrar sesión?',
+          style: AppTypography.titleLargeDark,
+        ),
         content: Text(
-          '¿Estás seguro de que deseas cerrar sesión?',
+          'Se cerrará tu sesión y deberás iniciar sesión nuevamente.',
           style: AppTypography.bodyMediumDark,
         ),
+        actionsAlignment: MainAxisAlignment.end,
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Cerrar Sesión'),
+            child: Text(
+              'Cerrar Sesión',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),

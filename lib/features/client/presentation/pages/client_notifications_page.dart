@@ -23,7 +23,11 @@ class ClientNotificationsPage extends ConsumerWidget {
       );
     }
 
-    final announcementsAsync = ref.watch(clientAnnouncementsProvider(firebaseUser.uid));
+    // Usar el activeUserIdProvider para obtener el ID correcto (modo prueba o real)
+    final activeUserId = ref.watch(activeUserIdProvider);
+    final clientId = activeUserId ?? firebaseUser.uid;
+
+    final announcementsAsync = ref.watch(currentUserAnnouncementsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
@@ -34,7 +38,12 @@ class ClientNotificationsPage extends ConsumerWidget {
             slivers: [
               _buildAppBar(context),
               SliverPadding(
-                padding: const EdgeInsets.all(AppConstants.spacingM),
+                padding: const EdgeInsets.fromLTRB(
+                  AppConstants.spacingM,
+                  0,
+                  AppConstants.spacingM,
+                  AppConstants.spacingM,
+                ),
                 sliver: announcementsAsync.when(
                   data: (announcements) {
                     if (announcements.isEmpty) {
@@ -49,7 +58,7 @@ class ClientNotificationsPage extends ConsumerWidget {
                             padding: const EdgeInsets.only(bottom: AppConstants.spacingM),
                             child: _AnnouncementCard(
                               announcement: announcements[index],
-                              clientId: firebaseUser.uid,
+                              clientId: clientId,
                             ),
                           );
                         },
@@ -58,7 +67,7 @@ class ClientNotificationsPage extends ConsumerWidget {
                     );
                   },
                   loading: () => const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
                   ),
                   error: (error, stack) => SliverFillRemaining(
                     child: Center(
@@ -70,6 +79,8 @@ class ClientNotificationsPage extends ConsumerWidget {
                   ),
                 ),
               ),
+              // Espacio para el navbar flotante
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
         ],
@@ -94,68 +105,78 @@ class ClientNotificationsPage extends ConsumerWidget {
 
   SliverAppBar _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 100,
       floating: true,
-      pinned: true,
-      backgroundColor: AppColors.backgroundDark.withValues(alpha: 0.9),
+      pinned: false,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       automaticallyImplyLeading: false,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 4),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimaryDark),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
       flexibleSpace: FlexibleSpaceBar(
-        background: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConstants.spacingL,
-            60,
-            AppConstants.spacingL,
-            AppConstants.spacingM,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppConstants.spacingM),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                    ),
-                    child: const Icon(
-                      Icons.notifications,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingM),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Notificaciones',
-                          style: AppTypography.headlineSmall.copyWith(
-                            color: AppColors.textPrimaryDark,
-                            fontWeight: FontWeight.w700,
-                          ),
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
                         ),
-                        Text(
-                          'Ofertas y anuncios',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textSecondaryDark,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.campaign_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Avisos',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Ofertas y anuncios del gimnasio',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingS),
+              ],
+            ),
           ),
         ),
       ),

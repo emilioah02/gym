@@ -57,16 +57,24 @@ class RoutineTile extends StatelessWidget {
                 ],
               ),
             ),
-            child: imageUrl != null
+            child: imageUrl != null && imageUrl!.isNotEmpty
                 ? ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(AppConstants.radiusL),
                     ),
-                    child: Image.network(
-                      imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
-                    ),
+                    child: imageUrl!.startsWith('assets/')
+                        ? Image.asset(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
+                          )
+                        : Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
+                          ),
                   )
                 : _buildPlaceholderImage(),
           ),

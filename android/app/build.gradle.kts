@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -26,8 +27,8 @@ android {
         applicationId = "com.mexicanbulking.gym"
         minSdk = flutter.minSdkVersion  // Android 6.0 - Required for Google Sign-In and Firebase
         targetSdk = 35  // Android 15 - Latest stable
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
         multiDexEnabled = true
     }
 

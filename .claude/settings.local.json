@@ -5,9 +5,12 @@
       "Bash(flutter analyze:*)",
       "Bash(dir:*)",
       "Bash(flutter pub get:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(flutter build:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "defaultMode": "bypassPermissions"
   }
 }

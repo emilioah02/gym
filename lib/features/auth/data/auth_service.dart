@@ -19,9 +19,15 @@ class AuthService {
   Future<UserCredential?> signInWithGoogle() async {
     try {
       if (kIsWeb) {
+        // Para web: forzar siempre el selector de cuentas de Google
         final googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
+        // IMPORTANTE: Forzar que Google muestre el selector de cuentas
+        // Esto previene el auto-login con la cuenta anterior
+        googleProvider.setCustomParameters({
+          'prompt': 'select_account',
+        });
         return await _auth.signInWithPopup(googleProvider);
       }
 
@@ -47,8 +53,6 @@ class AuthService {
     } on FirebaseException catch (e) {
       throw AuthException(e.message ?? 'Authentication failed');
     } catch (e) {
-      print('Google Sign-In Error: $e');
-      print('Error type: ${e.runtimeType}');
       throw AuthException('Error al iniciar sesión con Google. Por favor intenta de nuevo.');
     }
   }
@@ -72,19 +76,28 @@ class AuthService {
     }
   }
 
-  /// Sign out
+  /// Sign out - Cierra sesión completamente de Firebase y Google
   Future<void> signOut() async {
     try {
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.disconnect(),
-      ]);
+      if (kIsWeb) {
+        // En web: solo cerrar sesión de Firebase
+        // El prompt: 'select_account' en signIn se encargará de pedir
+        // selección de cuenta la próxima vez
+        await _auth.signOut();
+      } else {
+        // En móvil: cerrar sesión de Firebase Y desconectar Google
+        // disconnect() revoca el acceso y fuerza selección de cuenta
+        await _auth.signOut();
+        try {
+          await _googleSignIn.disconnect();
+        } catch (e) {
+          // Si disconnect falla, intentar signOut de Google
+          await _googleSignIn.signOut();
+        }
+      }
     } catch (e) {
-      // If disconnect fails (e.g., user not signed in), try signOut
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      // Fallback: al menos cerrar Firebase
+      await _auth.signOut();
     }
   }
 }

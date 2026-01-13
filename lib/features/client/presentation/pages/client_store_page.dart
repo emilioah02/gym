@@ -132,9 +132,50 @@ class _ClientStorePageState extends ConsumerState<ClientStorePage> {
                 ),
                 error: (error, _) => SliverFillRemaining(
                   child: Center(
-                    child: Text(
-                      'Error al cargar productos',
-                      style: TextStyle(color: AppColors.error),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: AppColors.error,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingM),
+                        Text(
+                          'Error al cargar productos',
+                          style: AppTypography.titleMedium.copyWith(
+                            color: AppColors.textPrimaryDark,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingS),
+                        Text(
+                          'No se pudieron cargar los productos.',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textSecondaryDark,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.spacingL),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.invalidate(activeProductsProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Reintentar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.backgroundDark,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.spacingL,
+                              vertical: AppConstants.spacingM,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -146,7 +187,7 @@ class _ClientStorePageState extends ConsumerState<ClientStorePage> {
           if (cartNotifier.totalItems > 0)
             Positioned(
               right: AppConstants.spacingM,
-              bottom: AppConstants.spacingXL,
+              bottom: 110, // Espacio para el navbar flotante
               child: _buildCartButton(cart, productsAsync.value ?? []),
             ),
         ],
@@ -171,78 +212,94 @@ class _ClientStorePageState extends ConsumerState<ClientStorePage> {
 
   SliverAppBar _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 100,
       floating: true,
-      pinned: true,
+      pinned: false,
       backgroundColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
-        background: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConstants.spacingL,
-            60,
-            AppConstants.spacingL,
-            AppConstants.spacingM,
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                ),
-                child: const Icon(
-                  Icons.shopping_bag,
-                  color: AppColors.primary,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      'Tienda',
-                      style: AppTypography.headlineSmall.copyWith(
-                        color: AppColors.textPrimaryDark,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: const Icon(
+                        Icons.shopping_bag_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
-                    Text(
-                      'Todo lo que necesitas para entrenar',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondaryDark,
-                        height: 1.2,
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Tienda',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Todo lo que necesitas para entrenar',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Botón de pedidos
+                    IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ClientOrdersPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.receipt_long_rounded,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              // Botón de pedidos
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ClientOrdersPage(),
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.receipt_long,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
-              ),
-            ],
+                const SizedBox(height: AppConstants.spacingS),
+              ],
+            ),
           ),
         ),
       ),

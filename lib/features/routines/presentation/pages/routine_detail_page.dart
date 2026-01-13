@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/typography.dart';
+import '../../../../core/models/routine_model.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../data/models/routine_model.dart';
 import '../../data/routines_data.dart';
 
 /// Routine Detail Page showing all exercises with sets/reps
@@ -122,13 +122,30 @@ class RoutineDetailPage extends StatelessWidget {
                   vertical: AppConstants.spacingXS,
                 ),
                 decoration: BoxDecoration(
-                  color: _getGenderColor(routine.gender).withValues(alpha: 0.2),
+                  color: _getGenderColor(routine.genero).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(AppConstants.radiusRound),
                 ),
                 child: Text(
-                  routine.gender.displayName,
+                  routine.genero.displayName,
                   style: AppTypography.labelSmall.copyWith(
-                    color: _getGenderColor(routine.gender),
+                    color: _getGenderColor(routine.genero),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingS),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingM,
+                  vertical: AppConstants.spacingXS,
+                ),
+                decoration: BoxDecoration(
+                  color: _getDifficultyColor(routine.dificultad).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+                ),
+                child: Text(
+                  routine.dificultad.displayName,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: _getDifficultyColor(routine.dificultad),
                   ),
                 ),
               ),
@@ -136,12 +153,12 @@ class RoutineDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: AppConstants.spacingM),
           Text(
-            routine.name,
+            routine.nombre,
             style: AppTypography.headlineLargeDark,
           ),
           const SizedBox(height: AppConstants.spacingS),
           Text(
-            routine.description,
+            routine.descripcion ?? '',
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondaryDark,
             ),
@@ -152,6 +169,7 @@ class RoutineDetailPage extends StatelessWidget {
   }
 
   Widget _buildStats(RoutineModel routine) {
+    final exerciseCount = routine.ejercicios.length;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingL),
       child: GlassCard(
@@ -161,7 +179,7 @@ class RoutineDetailPage extends StatelessWidget {
           children: [
             _StatItem(
               icon: Icons.fitness_center,
-              value: '${routine.exerciseCount}',
+              value: '$exerciseCount',
               label: 'Ejercicios',
             ),
             Container(
@@ -171,7 +189,7 @@ class RoutineDetailPage extends StatelessWidget {
             ),
             _StatItem(
               icon: Icons.schedule,
-              value: routine.duration,
+              value: '${routine.duracionMinutos} min',
               label: 'Duración',
             ),
             Container(
@@ -181,7 +199,7 @@ class RoutineDetailPage extends StatelessWidget {
             ),
             _StatItem(
               icon: Icons.local_fire_department,
-              value: '${routine.exerciseCount * 50}',
+              value: '${exerciseCount * 50}',
               label: 'Cal. Est.',
             ),
           ],
@@ -201,7 +219,7 @@ class RoutineDetailPage extends StatelessWidget {
             style: AppTypography.headlineSmallDark,
           ),
           Text(
-            '${routine.exerciseCount} en total',
+            '${routine.ejercicios.length} en total',
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondaryDark,
             ),
@@ -215,12 +233,12 @@ class RoutineDetailPage extends StatelessWidget {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          final exercise = routine.exercises[index];
+          final exercise = routine.ejercicios[index];
           return Padding(
             padding: EdgeInsets.only(
               left: AppConstants.spacingL,
               right: AppConstants.spacingL,
-              bottom: index < routine.exercises.length - 1
+              bottom: index < routine.ejercicios.length - 1
                   ? AppConstants.spacingM
                   : 0,
             ),
@@ -230,7 +248,7 @@ class RoutineDetailPage extends StatelessWidget {
             ),
           );
         },
-        childCount: routine.exercises.length,
+        childCount: routine.ejercicios.length,
       ),
     );
   }
@@ -273,12 +291,25 @@ class RoutineDetailPage extends StatelessWidget {
 
   Color _getGenderColor(RoutineGender gender) {
     switch (gender) {
-      case RoutineGender.men:
+      case RoutineGender.hombre:
         return AppColors.info;
-      case RoutineGender.women:
+      case RoutineGender.mujer:
         return AppColors.error;
       case RoutineGender.unisex:
         return AppColors.primary;
+    }
+  }
+
+  Color _getDifficultyColor(RoutineDifficulty difficulty) {
+    switch (difficulty) {
+      case RoutineDifficulty.principiante:
+        return AppColors.success;
+      case RoutineDifficulty.medio:
+        return AppColors.warning;
+      case RoutineDifficulty.avanzado:
+        return AppColors.error;
+      case RoutineDifficulty.experto:
+        return const Color(0xFF9C27B0); // Purple
     }
   }
 }
@@ -334,89 +365,91 @@ class _ExerciseCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Exercise Image
-          if (exercise.machine.imageUrl != null)
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppConstants.radiusM),
-                topRight: Radius.circular(AppConstants.radiusM),
-              ),
-              child: Stack(
-                children: [
-                  Image.network(
-                    exercise.machine.imageUrl!,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 120,
-                        color: AppColors.glassDark,
-                        child: const Center(
-                          child: Icon(
-                            Icons.fitness_center,
-                            size: 40,
-                            color: AppColors.textSecondaryDark,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Index number overlay
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundDark.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(AppConstants.radiusS),
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$index',
-                          style: AppTypography.titleMedium.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+          // Exercise Image placeholder with index and sets/reps
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(AppConstants.radiusM),
+              topRight: Radius.circular(AppConstants.radiusM),
+            ),
+            child: Stack(
+              children: [
+                if (exercise.machineImageUrl != null && exercise.machineImageUrl!.isNotEmpty)
+                  exercise.machineImageUrl!.startsWith('assets/')
+                      ? Image.asset(
+                          exercise.machineImageUrl!,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholder();
+                          },
+                        )
+                      : Image.network(
+                          exercise.machineImageUrl!,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholder();
+                          },
+                        )
+                else
+                  _buildPlaceholder(),
+                // Index number overlay
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundDark.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(AppConstants.radiusS),
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 2,
                       ),
                     ),
-                  ),
-                  // Sets x Reps overlay
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppConstants.spacingM,
-                        vertical: AppConstants.spacingS,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundDark.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
+                    child: Center(
                       child: Text(
-                        '${exercise.sets} × ${exercise.reps}',
-                        style: AppTypography.labelLarge.copyWith(
+                        '$index',
+                        style: AppTypography.titleMedium.copyWith(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                // Sets x Reps overlay
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingM,
+                      vertical: AppConstants.spacingS,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundDark.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      '${exercise.sets} × ${exercise.reps}',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
 
           // Exercise Info
           Padding(
@@ -425,19 +458,10 @@ class _ExerciseCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  exercise.machine.name,
+                  exercise.machineName,
                   style: AppTypography.titleMediumDark,
                 ),
-                const SizedBox(height: AppConstants.spacingXS),
-                Text(
-                  exercise.machine.description,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondaryDark,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (exercise.notes != null) ...[
+                if (exercise.notas != null && exercise.notas!.isNotEmpty) ...[
                   const SizedBox(height: AppConstants.spacingS),
                   Container(
                     padding: const EdgeInsets.all(AppConstants.spacingS),
@@ -458,7 +482,7 @@ class _ExerciseCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            exercise.notes!,
+                            exercise.notas!,
                             style: AppTypography.labelSmall.copyWith(
                               color: AppColors.primary,
                               fontStyle: FontStyle.italic,
@@ -473,6 +497,20 @@ class _ExerciseCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      height: 120,
+      color: AppColors.glassDark,
+      child: const Center(
+        child: Icon(
+          Icons.fitness_center,
+          size: 40,
+          color: AppColors.textSecondaryDark,
+        ),
       ),
     );
   }

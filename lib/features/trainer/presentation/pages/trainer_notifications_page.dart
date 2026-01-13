@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
-import 'trainer_help_notifications_page.dart';
+import 'trainer_notifications_center_page.dart';
 import 'trainer_shell.dart';
 
-/// Página de notificaciones de ayuda para el entrenador
-/// Wraps TrainerHelpNotificationsPage with shell navigation
+/// Página de notificaciones para el entrenador
+/// Wraps TrainerNotificationsCenterPage with shell navigation
 class TrainerNotificationsPage extends StatelessWidget {
-  const TrainerNotificationsPage({super.key});
+  final int initialTab;
+
+  const TrainerNotificationsPage({
+    super.key,
+    this.initialTab = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const TrainerShell(
+    return TrainerShell(
       currentIndex: 3,
-      child: TrainerHelpNotificationsPage(),
+      child: TrainerNotificationsCenterPage(initialTab: initialTab),
     );
   }
 }

@@ -76,9 +76,11 @@ class _AssignRoutinePageState extends ConsumerState<AssignRoutinePage> {
       body: Stack(
         children: [
           _buildBackground(),
-          _currentStep == 0
-              ? _buildBodyPartSelection()
-              : _buildRoutineSelection(),
+          Positioned.fill(
+            child: _currentStep == 0
+                ? _buildBodyPartSelection()
+                : _buildRoutineSelection(),
+          ),
         ],
       ),
     );
@@ -253,6 +255,25 @@ class _AssignRoutinePageState extends ConsumerState<AssignRoutinePage> {
   Widget _buildRoutineSelection() {
     final routinesAsync = ref.watch(routinesProvider);
 
+    // Debug: mostrar estado de las rutinas
+    routinesAsync.when(
+      data: (routines) {
+        print('🔍 [DEBUG] Total rutinas recibidas: ${routines.length}');
+        print('🔍 [DEBUG] Parte del cuerpo seleccionada: $_selectedBodyPart');
+        print('🔍 [DEBUG] Género del cliente: ${widget.client.genero}');
+        final filtered = _filterRoutines(routines);
+        print('🔍 [DEBUG] Rutinas después de filtrar: ${filtered.length}');
+        if (filtered.isEmpty && routines.isNotEmpty) {
+          print('⚠️ [DEBUG] Rutinas por parte del cuerpo:');
+          for (final r in routines) {
+            print('   - ${r.nombre}: ${r.parteDelCuerpo}, género: ${r.genero}');
+          }
+        }
+      },
+      loading: () => print('🔍 [DEBUG] Cargando rutinas...'),
+      error: (e, _) => print('❌ [DEBUG] Error cargando rutinas: $e'),
+    );
+
     return Column(
       children: [
         // Header con filtros
@@ -373,6 +394,44 @@ class _AssignRoutinePageState extends ConsumerState<AssignRoutinePage> {
                         Icons.search_off,
                         size: 64,
                         color: AppColors.textSecondaryDark.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: AppConstants.spacingM),
+                      // DEBUG INFO - Mostrar en UI para diagnóstico
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.symmetric(horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              '🔍 DEBUG INFO',
+                              style: TextStyle(
+                                color: AppColors.warning,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Total rutinas en Firebase: ${routines.length}',
+                              style: TextStyle(color: AppColors.warning, fontSize: 12),
+                            ),
+                            Text(
+                              'Filtro parte cuerpo: $_selectedBodyPart',
+                              style: TextStyle(color: AppColors.warning, fontSize: 12),
+                            ),
+                            Text(
+                              'Género cliente: ${widget.client.genero}',
+                              style: TextStyle(color: AppColors.warning, fontSize: 12),
+                            ),
+                            if (routines.isNotEmpty)
+                              Text(
+                                'Partes: ${routines.map((r) => r.parteDelCuerpo).toSet().join(", ")}',
+                                style: TextStyle(color: AppColors.warning, fontSize: 10),
+                              ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: AppConstants.spacingM),
                       Text(
@@ -599,43 +658,36 @@ class _AssignRoutinePageState extends ConsumerState<AssignRoutinePage> {
 
   Future<void> _assignForToday(RoutineModel routine) async {
     final firebaseService = ref.read(firebaseServiceProvider);
-    final today = DateTime.now().weekday; // 1=Monday, 7=Sunday
+    final notificationService = ref.read(notificationServiceProvider);
+    final trainerId = ref.read(firebaseUserProvider).value?.uid;
+    final trainerName = ref.read(userModelProvider).value?.nombre ?? 'Tu entrenador';
 
-    final Map<String, dynamic> routineData = {
-      'clienteId': widget.client.uid,
-      'creadoPor': ref.read(firebaseUserProvider).value?.uid,
-    };
+    // Usar assignRoutineToClient para crear una rutina temporal (3 horas)
+    // Esto guarda en 'assigned_routines' que el cliente revisa primero
+    await firebaseService.assignRoutineToClient(
+      clienteId: widget.client.uid,
+      rutinaId: routine.id,
+      rutinaNombre: routine.nombre,
+      trainerId: trainerId,
+    );
 
-    // Set only today's routine
-    switch (today) {
-      case 1:
-        routineData['lunes'] = routine.id;
-        break;
-      case 2:
-        routineData['martes'] = routine.id;
-        break;
-      case 3:
-        routineData['miercoles'] = routine.id;
-        break;
-      case 4:
-        routineData['jueves'] = routine.id;
-        break;
-      case 5:
-        routineData['viernes'] = routine.id;
-        break;
-      case 6:
-        routineData['sabado'] = routine.id;
-        break;
-      case 7:
-        routineData['domingo'] = routine.id;
-        break;
-    }
-
-    await firebaseService.setWeeklyRoutine(widget.client.uid, routineData);
+    // Enviar notificación push al cliente
+    await notificationService.sendPushNotification(
+      recipientUserId: widget.client.uid,
+      title: '¡Tu rutina está lista!',
+      body: '$trainerName te asignó "${routine.nombre}" para hoy. ¡A entrenar!',
+      data: {
+        'type': 'routine_assigned',
+        'routineId': routine.id,
+        'assignmentType': 'today',
+      },
+    );
   }
 
   Future<void> _assignForWeek(RoutineModel routine) async {
     final firebaseService = ref.read(firebaseServiceProvider);
+    final notificationService = ref.read(notificationServiceProvider);
+    final trainerName = ref.read(userModelProvider).value?.nombre ?? 'Tu entrenador';
 
     // Assign the same routine for all 7 days
     final routineData = {
@@ -651,6 +703,18 @@ class _AssignRoutinePageState extends ConsumerState<AssignRoutinePage> {
     };
 
     await firebaseService.setWeeklyRoutine(widget.client.uid, routineData);
+
+    // Enviar notificación push al cliente
+    await notificationService.sendPushNotification(
+      recipientUserId: widget.client.uid,
+      title: '¡Tu rutina semanal está lista!',
+      body: '$trainerName te asignó "${routine.nombre}" para toda la semana. ¡Comienza cuando quieras!',
+      data: {
+        'type': 'routine_assigned',
+        'routineId': routine.id,
+        'assignmentType': 'weekly',
+      },
+    );
   }
 }
 
@@ -838,15 +902,18 @@ class _RoutineCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppConstants.spacingS),
-            // Botón asignar
-            ElevatedButton(
-              onPressed: onAssign,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.backgroundDark,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            // Botón asignar - envuelto en SizedBox para constraints adecuados
+            SizedBox(
+              width: 90,
+              child: ElevatedButton(
+                onPressed: onAssign,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.backgroundDark,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                child: const Text('Asignar', style: TextStyle(fontSize: 12)),
               ),
-              child: const Text('Asignar'),
             ),
           ],
         ),

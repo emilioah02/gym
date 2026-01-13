@@ -30,29 +30,54 @@ class StoreOrderModel {
 
   // Factory desde Firestore
   factory StoreOrderModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    // Parsear fechaPedido de forma segura
+    DateTime fechaPedido;
+    try {
+      final fechaPedidoData = data['fechaPedido'];
+      if (fechaPedidoData is Timestamp) {
+        fechaPedido = fechaPedidoData.toDate();
+      } else {
+        fechaPedido = DateTime.now();
+      }
+    } catch (e) {
+      fechaPedido = DateTime.now();
+    }
+
+    // Parsear items de forma segura
+    List<OrderItem> items = [];
+    try {
+      final itemsData = data['items'];
+      if (itemsData is List) {
+        items = itemsData
+            .whereType<Map<String, dynamic>>()
+            .map((item) => OrderItem.fromMap(item))
+            .toList();
+      }
+    } catch (e) {
+      items = [];
+    }
+
     return StoreOrderModel(
       id: doc.id,
-      clienteId: data['clienteId'] ?? '',
-      clienteNombre: data['clienteNombre'] ?? 'Cliente',
-      clientePhotoUrl: data['clientePhotoUrl'],
-      items: (data['items'] as List<dynamic>?)
-              ?.map((item) => OrderItem.fromMap(item as Map<String, dynamic>))
-              .toList() ??
-          [],
+      clienteId: data['clienteId']?.toString() ?? '',
+      clienteNombre: data['clienteNombre']?.toString() ?? 'Cliente',
+      clientePhotoUrl: data['clientePhotoUrl']?.toString(),
+      items: items,
       total: (data['total'] ?? 0.0).toDouble(),
       estado: OrderStatus.values.firstWhere(
         (e) => e.name == data['estado'],
         orElse: () => OrderStatus.pendiente,
       ),
-      fechaPedido: (data['fechaPedido'] as Timestamp).toDate(),
-      fechaListo: data['fechaListo'] != null
+      fechaPedido: fechaPedido,
+      fechaListo: data['fechaListo'] != null && data['fechaListo'] is Timestamp
           ? (data['fechaListo'] as Timestamp).toDate()
           : null,
-      fechaEntregado: data['fechaEntregado'] != null
+      fechaEntregado: data['fechaEntregado'] != null && data['fechaEntregado'] is Timestamp
           ? (data['fechaEntregado'] as Timestamp).toDate()
           : null,
-      notas: data['notas'],
+      notas: data['notas']?.toString(),
     );
   }
 

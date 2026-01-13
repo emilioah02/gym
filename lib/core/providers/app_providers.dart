@@ -6,6 +6,7 @@ import '../services/firebase_service.dart';
 import '../services/migration_service.dart';
 import '../services/notification_service.dart';
 import '../router/app_router.dart';
+import '../../features/routines/data/machines_data.dart';
 
 // ============ SERVICES ============
 
@@ -35,6 +36,14 @@ final firebaseUserProvider = StreamProvider<User?>((ref) {
 /// null = usar usuario real, no-null = usar usuario de prueba
 final activeUserIdProvider = StateProvider<String?>((ref) => null);
 
+/// Provider de caché para el rol del usuario - permite navegación instantánea sin loader
+/// Se actualiza cuando userRoleProvider obtiene datos y persiste entre navegaciones
+final cachedUserRoleProvider = StateProvider<UserRole?>((ref) => null);
+
+/// Provider de caché para el modelo del usuario - permite navegación instantánea sin loader
+/// Se actualiza cuando userModelProvider obtiene datos y persiste entre navegaciones
+final cachedUserModelProvider = StateProvider<UserModel?>((ref) => null);
+
 /// Provider para el modelo de usuario completo desde Firestore
 /// Usa el activeUserIdProvider si está configurado, sino usa el usuario autenticado
 final userModelProvider = StreamProvider<UserModel?>((ref) {
@@ -49,24 +58,29 @@ final userModelProvider = StreamProvider<UserModel?>((ref) {
 });
 
 /// Provider para verificar y obtener el rol del usuario
+/// Usa el activeUserIdProvider si está configurado (modo prueba), sino usa el usuario autenticado
 final userRoleProvider = FutureProvider<UserRole>((ref) async {
   final firebaseUser = ref.watch(firebaseUserProvider).value;
   if (firebaseUser == null) {
     return UserRole.cliente;
   }
 
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
   return ref
       .watch(firebaseServiceProvider)
-      .getUserRole(firebaseUser.uid);
+      .getUserRole(uid);
 });
 
-/// Provider que indica si el usuario es entrenador
+/// Provider que indica si el usuario tiene permisos de entrenador (entrenador o admin)
 final isTrainerProvider = Provider<bool>((ref) {
   final roleAsync = ref.watch(userRoleProvider);
   return roleAsync.when(
-    data: (role) => role == UserRole.entrenador,
+    data: (role) => role.hasTrainerPermissions,
     loading: () => false,
-    error: (_, _) => false,
+    error: (_, __) => false,
   );
 });
 
@@ -76,11 +90,20 @@ final isOnboardingCompleteProvider = Provider<bool>((ref) {
   return userModel?.onboardingCompleto ?? false;
 });
 
+/// Provider para ocultar temporalmente el card de "Entrenamiento completado"
+/// Permite al usuario volver al estado de solicitar rutina
+final dismissCompletedWorkoutCardProvider = StateProvider<bool>((ref) => false);
+
+/// Provider para ocultar temporalmente la rutina del día (plan semanal)
+/// Permite al usuario descartar la rutina y solicitar otra al coach
+final dismissTodayRoutineCardProvider = StateProvider<bool>((ref) => false);
+
 // ============ MACHINES ============
 
-/// Provider para todas las máquinas
-final machinesProvider = StreamProvider<List<MachineModel>>((ref) {
-  return ref.watch(firebaseServiceProvider).getAllMachines();
+/// Provider para todas las máquinas (usando datos locales con imágenes)
+final machinesProvider = Provider<AsyncValue<List<MachineModel>>>((ref) {
+  // Usar datos locales que incluyen las rutas de imágenes correctas
+  return AsyncValue.data(MachinesData.allMachines);
 });
 
 /// Provider para máquinas filtradas
@@ -151,6 +174,13 @@ class MachineFilters {
 /// StateProvider para los filtros actuales de máquinas
 final machineFiltersProvider = StateProvider<MachineFilters>((ref) {
   return const MachineFilters();
+});
+
+// ============ EXERCISES ============
+
+/// Provider para ejercicios personalizados (creados por entrenadores desde Firebase)
+final customExercisesProvider = StreamProvider<List<ExerciseModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).getAllExercises();
 });
 
 // ============ ROUTINES ============
@@ -249,9 +279,14 @@ final routineFiltersProvider = StateProvider<RoutineFilters>((ref) {
 // ============ CLIENTS (TRAINER) ============
 
 /// Provider para todos los clientes (solo para entrenadores)
+/// Usa keepAlive para mantener los datos en caché entre navegaciones
 final clientsProvider = StreamProvider<List<UserModel>>((ref) {
+  ref.keepAlive(); // Mantener datos en caché
   return ref.watch(firebaseServiceProvider).getAllClients();
 });
+
+/// Provider de caché para clientes - permite mostrar datos anteriores mientras carga
+final cachedClientsProvider = StateProvider<List<UserModel>?>((ref) => null);
 
 /// Provider para búsqueda de clientes
 final clientSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -271,11 +306,16 @@ final filteredClientsProvider = Provider<List<UserModel>>((ref) {
 // ============ WEEKLY ROUTINES ============
 
 /// Provider para la rutina semanal del cliente actual
+/// Usa el activeUserIdProvider si está configurado (modo prueba), sino usa el usuario autenticado
 final currentUserWeeklyRoutineProvider = StreamProvider<WeeklyRoutine?>((ref) {
   final firebaseUser = ref.watch(firebaseUserProvider).value;
   if (firebaseUser == null) return Stream.value(null);
 
-  return ref.watch(firebaseServiceProvider).weeklyRoutineStream(firebaseUser.uid);
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
+  return ref.watch(firebaseServiceProvider).weeklyRoutineStream(uid);
 });
 
 /// Provider para la rutina del día actual
@@ -287,12 +327,57 @@ final todayRoutineIdProvider = Provider<String?>((ref) {
   return weeklyRoutine.getRutinaDelDia(today);
 });
 
-/// Provider para obtener la rutina del día
+/// Provider para obtener la rutina del día (desde rutina semanal)
 final todayRoutineProvider = FutureProvider<RoutineModel?>((ref) async {
   final routineId = ref.watch(todayRoutineIdProvider);
   if (routineId == null) return null;
 
   return ref.watch(firebaseServiceProvider).getRoutine(routineId);
+});
+
+// ============ ASSIGNED ROUTINES (3 HOUR EXPIRATION) ============
+
+/// Provider para la rutina asignada activa del cliente actual
+final activeAssignedRoutineProvider = StreamProvider<AssignedRoutineModel?>((ref) {
+  final firebaseUser = ref.watch(firebaseUserProvider).value;
+  if (firebaseUser == null) {
+    print('🔍 [ASSIGNED_ROUTINE] firebaseUser es null, retornando null');
+    return Stream.value(null);
+  }
+
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
+  print('🔍 [ASSIGNED_ROUTINE] Consultando rutinas asignadas:');
+  print('   - firebaseUser.uid: ${firebaseUser.uid}');
+  print('   - activeUserId: $activeUserId');
+  print('   - uid usado para consulta: $uid');
+
+  return ref.watch(firebaseServiceProvider).activeAssignedRoutineStream(uid);
+});
+
+/// Provider para obtener la rutina completa de la asignación activa
+final activeAssignedRoutineDetailProvider = FutureProvider<RoutineModel?>((ref) async {
+  final assignment = ref.watch(activeAssignedRoutineProvider).value;
+  if (assignment == null) return null;
+
+  return ref.watch(firebaseServiceProvider).getRoutine(assignment.rutinaId);
+});
+
+/// Provider combinado que obtiene la rutina del día (asignada temporal o semanal)
+final clientTodayRoutineProvider = FutureProvider<RoutineModel?>((ref) async {
+  // Primero verificar si hay una rutina asignada temporalmente (3 horas)
+  final assignedRoutine = ref.watch(activeAssignedRoutineProvider).value;
+  if (assignedRoutine != null && assignedRoutine.isActive) {
+    return ref.watch(firebaseServiceProvider).getRoutine(assignedRoutine.rutinaId);
+  }
+
+  // Si no hay rutina asignada temporal, usar la rutina semanal
+  final weeklyRoutineId = ref.watch(todayRoutineIdProvider);
+  if (weeklyRoutineId == null) return null;
+
+  return ref.watch(firebaseServiceProvider).getRoutine(weeklyRoutineId);
 });
 
 // ============ HISTORY ============
@@ -302,7 +387,85 @@ final currentUserHistoryProvider = StreamProvider<List<TrainingHistory>>((ref) {
   final firebaseUser = ref.watch(firebaseUserProvider).value;
   if (firebaseUser == null) return Stream.value([]);
 
-  return ref.watch(firebaseServiceProvider).getClientHistory(firebaseUser.uid);
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
+  return ref.watch(firebaseServiceProvider).getClientHistory(uid);
+});
+
+/// Provider que verifica si el usuario entrenó hoy
+/// Combina verificación de fechaUltimoEntrenamiento Y historial de hoy
+final hasTrainedTodayProvider = Provider<bool>((ref) {
+  // Verificar fechaUltimoEntrenamiento del usuario
+  final user = ref.watch(userModelProvider).value;
+  if (user != null && user.fechaUltimoEntrenamiento != null) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastWorkout = DateTime(
+      user.fechaUltimoEntrenamiento!.year,
+      user.fechaUltimoEntrenamiento!.month,
+      user.fechaUltimoEntrenamiento!.day,
+    );
+    if (today.isAtSameMomentAs(lastWorkout)) {
+      return true;
+    }
+  }
+
+  // Verificar también en el historial por si el stream del usuario no se actualizó
+  final history = ref.watch(currentUserHistoryProvider).value ?? [];
+  if (history.isNotEmpty) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastEntry = history.first;
+    final lastEntryDate = DateTime(
+      lastEntry.fecha.year,
+      lastEntry.fecha.month,
+      lastEntry.fecha.day,
+    );
+    if (today.isAtSameMomentAs(lastEntryDate)) {
+      return true;
+    }
+  }
+
+  return false;
+});
+
+/// Provider que verifica y recalcula automáticamente la racha si detecta inconsistencias.
+///
+/// Se activa cuando:
+/// - El usuario tiene racha 0 pero tiene historial de entrenamientos recientes
+/// - Útil para corregir rachas que no se calcularon correctamente
+final streakAutoFixProvider = FutureProvider<int?>((ref) async {
+  final user = ref.watch(userModelProvider).value;
+  if (user == null) return null;
+
+  final history = ref.watch(currentUserHistoryProvider).value ?? [];
+
+  // Si el usuario tiene racha 0 pero tiene historial, verificar si necesita recalcular
+  if (user.rachasDias == 0 && history.isNotEmpty) {
+    // Verificar si el último entrenamiento fue en los últimos 2 días
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastEntry = history.first;
+    final lastEntryDate = DateTime(
+      lastEntry.fecha.year,
+      lastEntry.fecha.month,
+      lastEntry.fecha.day,
+    );
+    final daysDifference = today.difference(lastEntryDate).inDays;
+
+    // Si el último entrenamiento fue hace 2 días o menos, la racha debería ser mayor a 0
+    if (daysDifference <= 2) {
+      print('🔧 [AUTO-FIX] Detectada inconsistencia en racha. Usuario ${user.uid} tiene ${history.length} entrenamientos pero racha 0. Recalculando...');
+      final firebaseService = ref.read(firebaseServiceProvider);
+      final newStreak = await firebaseService.recalculateStreak(user.uid);
+      print('🔧 [AUTO-FIX] Nueva racha calculada: $newStreak');
+      return newStreak;
+    }
+  }
+
+  return null;
 });
 
 /// Provider para el historial de un cliente específico (para entrenador)
@@ -350,18 +513,41 @@ final unreadNotificationsCountProvider = StreamProvider<int>((ref) {
 
 // ============ CLIENT ANNOUNCEMENTS ============
 
-/// Provider para anuncios del cliente
+/// Provider para anuncios del cliente (por ID específico)
 final clientAnnouncementsProvider =
     StreamProvider.family<List<AnnouncementModel>, String>((ref, clientId) {
   return ref.watch(firebaseServiceProvider).getClientAnnouncementsStream(clientId);
 });
 
+/// Provider para anuncios del cliente actual
+/// Usa el activeUserIdProvider si está configurado (modo prueba), sino usa el usuario autenticado
+final currentUserAnnouncementsProvider = StreamProvider<List<AnnouncementModel>>((ref) {
+  final firebaseUser = ref.watch(firebaseUserProvider).value;
+  if (firebaseUser == null) return Stream.value([]);
+
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
+  return ref.watch(firebaseServiceProvider).getClientAnnouncementsStream(uid);
+});
+
 /// Provider para el contador de anuncios no leídos del cliente
+/// Usa el activeUserIdProvider si está configurado (modo prueba), sino usa el usuario autenticado
 final unreadAnnouncementsCountProvider = StreamProvider<int>((ref) {
   final firebaseUser = ref.watch(firebaseUserProvider).value;
   if (firebaseUser == null) return Stream.value(0);
 
-  return ref.watch(firebaseServiceProvider).getUnreadAnnouncementsCount(firebaseUser.uid);
+  // Si hay un usuario activo configurado (modo prueba), usar ese ID
+  final activeUserId = ref.watch(activeUserIdProvider);
+  final uid = activeUserId ?? firebaseUser.uid;
+
+  return ref.watch(firebaseServiceProvider).getUnreadAnnouncementsCount(uid);
+});
+
+/// Provider para anuncios enviados por el entrenador (todos los activos)
+final trainerAnnouncementsProvider = StreamProvider<List<AnnouncementModel>>((ref) {
+  return ref.watch(firebaseServiceProvider).getAnnouncementsStream();
 });
 
 // ============ STORE ORDERS ============

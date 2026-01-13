@@ -910,27 +910,39 @@ class _MachineListItem extends StatelessWidget {
               child: SizedBox(
                 width: 60,
                 height: 60,
-                child: machine.imageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: machine.imageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppColors.glassDark,
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                              strokeWidth: 2,
+                child: machine.imageUrl != null && machine.imageUrl!.isNotEmpty
+                    ? (machine.imageUrl!.startsWith('assets/')
+                        ? Image.asset(
+                            machine.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: AppColors.glassDark,
+                              child: const Icon(
+                                Icons.fitness_center,
+                                color: AppColors.textSecondaryDark,
+                              ),
                             ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppColors.glassDark,
-                          child: const Icon(
-                            Icons.fitness_center,
-                            color: AppColors.textSecondaryDark,
-                          ),
-                        ),
-                      )
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: machine.imageUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: AppColors.glassDark,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.glassDark,
+                              child: const Icon(
+                                Icons.fitness_center,
+                                color: AppColors.textSecondaryDark,
+                              ),
+                            ),
+                          ))
                     : Container(
                         color: AppColors.glassDark,
                         child: const Icon(

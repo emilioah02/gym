@@ -1,0 +1,24 @@
+{
+  "cmake.ignoreCMakeListsMissing": true,
+  "dart.sdkPath": "C:\\src\\flutter\\bin\\cache\\dart-sdk",
+  "dart.flutterSdkPath": "C:\\src\\flutter",
+  "dart.analyzerDiagnosticsPort": null,
+  "dart.analyzeAngularTemplates": false,
+  "dart.enableSdkFormatter": true,
+  "dart.lineLength": 80,
+  "dart.showTodos": false,
+  "dart.autoImportCompletions": true,
+  "dart.closingLabels": true,
+  "dart.previewFlutterUiGuides": true,
+  "dart.warnWhenEditingFilesOutsideWorkspace": false,
+  "dart.allowAnalytics": false,
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.rulers": [80],
+    "editor.selectionHighlight": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  }
+}

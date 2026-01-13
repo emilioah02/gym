@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/typography.dart';
@@ -64,27 +65,78 @@ class TrainerProfilePage extends ConsumerWidget {
 
   SliverAppBar _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 80,
+      expandedHeight: 100,
       floating: true,
+      pinned: false,
       backgroundColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
-        background: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConstants.spacingL,
-            60,
-            AppConstants.spacingL,
-            AppConstants.spacingM,
-          ),
-          child: Row(
-            children: [
-              Text(
-                'Perfil',
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.textPrimaryDark,
-                  fontWeight: FontWeight.w700,
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Perfil',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Tu información y ajustes',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: AppConstants.spacingS),
+              ],
+            ),
           ),
         ),
       ),
@@ -105,10 +157,17 @@ class TrainerProfilePage extends ConsumerWidget {
           const _ClientModeCard(),
           const SizedBox(height: AppConstants.spacingL),
 
-          // Agregar Entrenador
-          _buildSectionTitle('Agregar Entrenador'),
-          const SizedBox(height: AppConstants.spacingM),
-          _AddTrainerCard(),
+          // Agregar Entrenador (solo para admins)
+          if (user.rol == UserRole.admin) ...[
+            _buildSectionTitle('Agregar Entrenador'),
+            const SizedBox(height: AppConstants.spacingM),
+            _AddTrainerCard(),
+            const SizedBox(height: AppConstants.spacingL),
+          ],
+
+          // Lista de Entrenadores del Gimnasio (visible para todos los entrenadores)
+          // Los admins pueden deslizar para eliminar
+          _TrainersListSection(currentUser: user, isAdmin: user.rol == UserRole.admin),
           const SizedBox(height: AppConstants.spacingL),
 
           // Información de la cuenta
@@ -123,14 +182,6 @@ class TrainerProfilePage extends ConsumerWidget {
           _buildSettingsSection(context, ref),
           const SizedBox(height: AppConstants.spacingL),
 
-          // Gestión de Entrenadores (solo admin)
-          if (user.rol == UserRole.admin) ...[
-            _buildSectionTitle('Gestión de Entrenadores'),
-            const SizedBox(height: AppConstants.spacingM),
-            _TrainerManagementSection(currentUser: user),
-            const SizedBox(height: AppConstants.spacingL),
-          ],
-
           // Acerca de
           _buildSectionTitle('Acerca de'),
           const SizedBox(height: AppConstants.spacingM),
@@ -139,6 +190,8 @@ class TrainerProfilePage extends ConsumerWidget {
 
           // Cerrar sesión
           _buildLogoutButton(context, ref),
+
+          SizedBox(height: 100),
         ],
       ),
     );
@@ -293,14 +346,7 @@ class TrainerProfilePage extends ConsumerWidget {
           icon: Icons.notifications,
           title: 'Notificaciones',
           subtitle: 'Configurar alertas',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Próximamente'),
-                backgroundColor: AppColors.info,
-              ),
-            );
-          },
+          onTap: () => context.push('/trainer/notification-settings'),
         ),
       ],
     );
@@ -320,14 +366,7 @@ class TrainerProfilePage extends ConsumerWidget {
           icon: Icons.privacy_tip,
           title: 'Política de Privacidad',
           subtitle: 'Ver términos y condiciones',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Próximamente'),
-                backgroundColor: AppColors.info,
-              ),
-            );
-          },
+          onTap: () => context.push('/privacy-policy'),
         ),
       ],
     );
@@ -450,13 +489,34 @@ class TrainerProfilePage extends ConsumerWidget {
   }
 
   Future<void> _shareApp(BuildContext context) async {
-    // TODO: Implementar share con link de la app
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Compartir app - Próximamente'),
-        backgroundColor: AppColors.info,
-      ),
-    );
+    const String appName = 'Mexican Bulking';
+    const String message =
+        '''
+¡Únete a $appName! 💪🏋️
+
+La mejor app para gestionar tu entrenamiento en el gimnasio. Conecta con tu entrenador, sigue rutinas personalizadas y alcanza tus metas fitness.
+
+📱 Descarga la app:
+Android: https://play.google.com/store/apps/details?id=com.mexicanbulking.app
+iOS: https://apps.apple.com/app/mexican-bulking/id123456789
+
+¡Te esperamos en Mexican Bulking Gym!
+''';
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: message, subject: 'Únete a $appName'),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo compartir'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _showAboutDialog(BuildContext context) {
@@ -542,15 +602,22 @@ class TrainerProfilePage extends ConsumerWidget {
             color: AppColors.textSecondaryDark,
           ),
         ),
+        actionsAlignment: MainAxisAlignment.end,
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Cerrar Sesión'),
+            child: Text(
+              'Cerrar Sesión',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -607,609 +674,6 @@ class _ErrorState extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Sección de gestión de entrenadores (solo admin)
-class _TrainerManagementSection extends ConsumerStatefulWidget {
-  final dynamic currentUser;
-
-  const _TrainerManagementSection({required this.currentUser});
-
-  @override
-  ConsumerState<_TrainerManagementSection> createState() =>
-      _TrainerManagementSectionState();
-}
-
-class _TrainerManagementSectionState
-    extends ConsumerState<_TrainerManagementSection> {
-  List<UserModel> _trainers = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTrainers();
-  }
-
-  Future<void> _loadTrainers() async {
-    setState(() => _isLoading = true);
-    try {
-      final trainers = await ref.read(firebaseServiceProvider).getTrainers();
-      if (mounted) {
-        setState(() {
-          _trainers = trainers;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar entrenadores: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header con icono y botón de agregar
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.admin_panel_settings,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingM),
-              Expanded(
-                child: Text(
-                  'Entrenadores del Gimnasio',
-                  style: AppTypography.titleSmall.copyWith(
-                    color: AppColors.textPrimaryDark,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () => _showAddTrainerDialog(),
-                icon: const Icon(Icons.add_circle, color: AppColors.primary),
-                tooltip: 'Agregar Entrenador',
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          const Divider(color: AppColors.glassBorder, height: 1),
-          const SizedBox(height: AppConstants.spacingM),
-
-          // Lista de entrenadores
-          if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppConstants.spacingL),
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            )
-          else if (_trainers.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppConstants.spacingL),
-                child: Text(
-                  'No hay entrenadores registrados',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textSecondaryDark,
-                  ),
-                ),
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _trainers.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: AppConstants.spacingS),
-              itemBuilder: (context, index) {
-                final trainer = _trainers[index];
-                return _buildTrainerItem(trainer);
-              },
-            ),
-
-          // Botón para setup rápido de entrenadores predefinidos
-          const SizedBox(height: AppConstants.spacingM),
-          const Divider(color: AppColors.glassBorder, height: 1),
-          const SizedBox(height: AppConstants.spacingM),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _runQuickSetup,
-              icon: const Icon(Icons.group_add, size: 18),
-              label: const Text('Actualizar Entrenadores Predefinidos'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.warning,
-                side: const BorderSide(color: AppColors.warning),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrainerItem(UserModel trainer) {
-    final isCurrentUser = trainer.uid == widget.currentUser.uid;
-
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingS),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        border: Border.all(color: AppColors.glassBorder, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-            backgroundImage: trainer.photoUrl != null
-                ? CachedNetworkImageProvider(trainer.photoUrl!)
-                : null,
-            child: trainer.photoUrl == null
-                ? Text(
-                    (trainer.nombre ?? 'E')[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: AppConstants.spacingM),
-
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        trainer.nombre ?? 'Sin nombre',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textPrimaryDark,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Badge de rol
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: trainer.rol == UserRole.admin
-                            ? AppColors.warning.withValues(alpha: 0.2)
-                            : AppColors.info.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(
-                          AppConstants.radiusRound,
-                        ),
-                      ),
-                      child: Text(
-                        trainer.rol == UserRole.admin ? 'Admin' : 'Entrenador',
-                        style: TextStyle(
-                          color: trainer.rol == UserRole.admin
-                              ? AppColors.warning
-                              : AppColors.info,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  trainer.email,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textSecondaryDark,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-
-          // Botón eliminar (solo si no es el usuario actual)
-          if (!isCurrentUser)
-            IconButton(
-              onPressed: () => _confirmDeleteTrainer(trainer),
-              icon: const Icon(Icons.delete_outline, size: 20),
-              color: AppColors.error,
-              tooltip: 'Eliminar acceso',
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showAddTrainerDialog() async {
-    final emailController = TextEditingController();
-    UserRole selectedRole = UserRole.entrenador;
-
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surfaceDark,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusL),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.person_add,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Agregar Entrenador',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.textPrimaryDark,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Email del usuario',
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.textSecondaryDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: AppColors.textPrimaryDark),
-                decoration: InputDecoration(
-                  hintText: 'usuario@ejemplo.com',
-                  hintStyle: TextStyle(
-                    color: AppColors.textSecondaryDark.withValues(alpha: 0.5),
-                  ),
-                  filled: true,
-                  fillColor: AppColors.backgroundDark,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                    borderSide: const BorderSide(color: AppColors.glassBorder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                    borderSide: const BorderSide(color: AppColors.glassBorder),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                    borderSide: const BorderSide(color: AppColors.primary),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingM),
-              Text(
-                'Rol',
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.textSecondaryDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundDark,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                  border: Border.all(color: AppColors.glassBorder),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<UserRole>(
-                    value: selectedRole,
-                    isExpanded: true,
-                    dropdownColor: AppColors.surfaceDark,
-                    style: const TextStyle(color: AppColors.textPrimaryDark),
-                    items: const [
-                      DropdownMenuItem(
-                        value: UserRole.entrenador,
-                        child: Text('Entrenador'),
-                      ),
-                      DropdownMenuItem(
-                        value: UserRole.admin,
-                        child: Text('Administrador'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() {
-                          selectedRole = value;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final email = emailController.text.trim();
-                if (email.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor ingresa un email'),
-                      backgroundColor: AppColors.warning,
-                    ),
-                  );
-                  return;
-                }
-
-                Navigator.pop(context, true);
-
-                // Procesar fuera del diálogo
-                await _addTrainer(email, selectedRole);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Agregar'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _addTrainer(String email, UserRole role) async {
-    try {
-      // Buscar usuario por email
-      final user = await ref
-          .read(firebaseServiceProvider)
-          .getUserByEmail(email);
-
-      if (user == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Usuario no encontrado'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Actualizar rol del usuario
-      await ref.read(firebaseServiceProvider).updateUserRole(user.uid, role);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${user.nombre ?? user.email} ahora es ${role.displayName}',
-            ),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-
-      // Recargar lista
-      await _loadTrainers();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al agregar entrenador: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _runQuickSetup() async {
-    final emails = [
-      'arthurmg0604@gmail.com',
-      'mactziaguilar717@gmail.com',
-      'penichediego1@gmail.com',
-      'penichealberto56@gmail.com',
-      'diegopeniche.galindo25@gmail.com',
-      'emilioah02@gmail.com',
-    ];
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        backgroundColor: AppColors.surfaceDark,
-        content: Row(
-          children: [
-            CircularProgressIndicator(color: AppColors.primary),
-            SizedBox(width: 16),
-            Text(
-              'Actualizando usuarios...',
-              style: TextStyle(color: AppColors.textPrimaryDark),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final results = await ref
-          .read(firebaseServiceProvider)
-          .makeUsersTrainers(emails);
-
-      if (mounted) {
-        Navigator.pop(context); // Cerrar loading
-
-        // Mostrar resultados
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppColors.surfaceDark,
-            title: Text(
-              'Resultados',
-              style: TextStyle(color: AppColors.textPrimaryDark),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: results.entries
-                    .map(
-                      (e) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          '${e.key}: ${e.value}',
-                          style: TextStyle(
-                            color:
-                                e.value.contains('Error') ||
-                                    e.value.contains('No encontrado')
-                                ? AppColors.error
-                                : AppColors.success,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _loadTrainers();
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _confirmDeleteTrainer(UserModel trainer) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surfaceDark,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        ),
-        title: Text(
-          'Eliminar acceso de entrenador',
-          style: AppTypography.titleMedium.copyWith(
-            color: AppColors.textPrimaryDark,
-          ),
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas cambiar a ${trainer.nombre ?? trainer.email} a rol de cliente?',
-          style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textSecondaryDark,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await ref
-            .read(firebaseServiceProvider)
-            .updateUserRole(trainer.uid, UserRole.cliente);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${trainer.nombre ?? trainer.email} ahora es cliente',
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-
-        // Recargar lista
-        await _loadTrainers();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al eliminar entrenador: $e'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
-      }
-    }
   }
 }
 
@@ -1416,6 +880,324 @@ class _ClientModeCard extends ConsumerStatefulWidget {
   ConsumerState<_ClientModeCard> createState() => _ClientModeCardState();
 }
 
+/// Sección de lista de entrenadores del gimnasio (visible para todos los entrenadores)
+class _TrainersListSection extends ConsumerStatefulWidget {
+  final dynamic currentUser;
+  final bool isAdmin;
+
+  const _TrainersListSection({required this.currentUser, this.isAdmin = false});
+
+  @override
+  ConsumerState<_TrainersListSection> createState() =>
+      _TrainersListSectionState();
+}
+
+class _TrainersListSectionState extends ConsumerState<_TrainersListSection> {
+  List<UserModel> _trainers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrainers();
+  }
+
+  Future<void> _loadTrainers() async {
+    setState(() => _isLoading = true);
+    try {
+      final trainers = await ref.read(firebaseServiceProvider).getTrainers();
+      if (mounted) {
+        setState(() {
+          _trainers = trainers;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _demoteToClient(UserModel trainer) async {
+    try {
+      await ref
+          .read(firebaseServiceProvider)
+          .updateUserRole(trainer.uid, UserRole.cliente);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${trainer.nombre ?? trainer.email} ahora es cliente. Puede volver a ser entrenador ingresando su correo.',
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+
+      // Recargar lista
+      await _loadTrainers();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cambiar rol: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.groups,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Entrenadores del Gimnasio',
+                      style: AppTypography.titleSmall.copyWith(
+                        color: AppColors.textPrimaryDark,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Equipo de entrenadores disponibles',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textSecondaryDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _loadTrainers,
+                icon: const Icon(Icons.refresh, color: AppColors.primary),
+                tooltip: 'Actualizar',
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingM),
+          const Divider(color: AppColors.glassBorder, height: 1),
+          const SizedBox(height: AppConstants.spacingM),
+
+          // Lista de entrenadores
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppConstants.spacingL),
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          else if (_trainers.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppConstants.spacingL),
+                child: Text(
+                  'No hay entrenadores registrados',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryDark,
+                  ),
+                ),
+              ),
+            )
+          else
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _trainers.asMap().entries.map((entry) {
+                final index = entry.key;
+                final trainer = entry.value;
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index < _trainers.length - 1
+                        ? AppConstants.spacingS
+                        : 0,
+                  ),
+                  child: _buildTrainerItem(trainer),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrainerItem(UserModel trainer) {
+    final isCurrentUser = trainer.uid == widget.currentUser.uid;
+    final canDismiss = widget.isAdmin && !isCurrentUser && trainer.rol != UserRole.admin;
+
+    final itemContent = Container(
+      padding: const EdgeInsets.all(AppConstants.spacingS),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.glassBorder, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+            backgroundImage: trainer.photoUrl != null
+                ? CachedNetworkImageProvider(trainer.photoUrl!)
+                : null,
+            child: trainer.photoUrl == null
+                ? Text(
+                    (trainer.nombre ?? 'E')[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: AppConstants.spacingM),
+
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trainer.nombre ?? 'Sin nombre',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textPrimaryDark,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  trainer.email,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textSecondaryDark,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+
+          // Badge de rol
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: trainer.rol == UserRole.admin
+                  ? AppColors.warning.withValues(alpha: 0.2)
+                  : AppColors.primary.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+            ),
+            child: Text(
+              trainer.rol == UserRole.admin ? 'Admin' : 'Coach',
+              style: TextStyle(
+                color: trainer.rol == UserRole.admin
+                    ? AppColors.warning
+                    : AppColors.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Si puede eliminar, envolver en Dismissible
+    if (canDismiss) {
+      return Dismissible(
+        key: Key(trainer.uid),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(
+            color: AppColors.error,
+            borderRadius: BorderRadius.circular(AppConstants.radiusM),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(Icons.person_remove, color: Colors.white),
+              SizedBox(width: 8),
+              Text(
+                'Pasar a Cliente',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppColors.surfaceDark,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.radiusL),
+              ),
+              title: Text(
+                'Cambiar a Cliente',
+                style: AppTypography.titleMedium.copyWith(
+                  color: AppColors.textPrimaryDark,
+                ),
+              ),
+              content: Text(
+                '¿Estás seguro de que deseas cambiar a ${trainer.nombre ?? trainer.email} de entrenador a cliente?\n\nPodrá volver a ser entrenador si ingresas su correo nuevamente.',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondaryDark,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            ),
+          );
+        },
+        onDismissed: (direction) => _demoteToClient(trainer),
+        child: itemContent,
+      );
+    }
+
+    return itemContent;
+  }
+}
+
 class _ClientModeCardState extends ConsumerState<_ClientModeCard> {
   bool _isLoading = false;
 
@@ -1457,8 +1239,17 @@ class _ClientModeCardState extends ConsumerState<_ClientModeCard> {
         }
       }
 
+      // IMPORTANTE: Limpiar caché de rol y modelo antes de cambiar de usuario
+      // Esto evita que RoleGate use el rol cacheado del entrenador
+      ref.read(cachedUserRoleProvider.notifier).state = null;
+      ref.read(cachedUserModelProvider.notifier).state = null;
+
       // Configurar el ID de usuario activo al usuario de prueba
       ref.read(activeUserIdProvider.notifier).state = testUserId;
+
+      // Invalidar providers para forzar recarga con el nuevo activeUserId
+      ref.invalidate(userRoleProvider);
+      ref.invalidate(userModelProvider);
 
       // Navegar al modo cliente
       if (mounted) {

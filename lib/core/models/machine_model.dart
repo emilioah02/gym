@@ -172,6 +172,95 @@ extension DifficultyLevelExtension on DifficultyLevel {
   }
 }
 
+/// Grupos musculares específicos
+enum MuscleGroup {
+  cuadriceps,
+  isquiotibiales,
+  gluteos,
+  aductores,
+  abductores,
+  pantorrillas,
+  pectoralMayor,
+  pectoralMenor,
+  dorsales,
+  trapecios,
+  romboides,
+  erectoresEspinales,
+  deltoidesAnterior,
+  deltoidesLateral,
+  deltoidesPosterior,
+  biceps,
+  triceps,
+  antebrazos,
+  abdominales,
+  oblicuos,
+  transversoAbdominal,
+  flexoresCadera,
+  core,
+}
+
+extension MuscleGroupExtension on MuscleGroup {
+  String get displayName {
+    switch (this) {
+      case MuscleGroup.cuadriceps:
+        return 'Cuádriceps';
+      case MuscleGroup.isquiotibiales:
+        return 'Isquiotibiales';
+      case MuscleGroup.gluteos:
+        return 'Glúteos';
+      case MuscleGroup.aductores:
+        return 'Aductores';
+      case MuscleGroup.abductores:
+        return 'Abductores';
+      case MuscleGroup.pantorrillas:
+        return 'Pantorrillas';
+      case MuscleGroup.pectoralMayor:
+        return 'Pectoral Mayor';
+      case MuscleGroup.pectoralMenor:
+        return 'Pectoral Menor';
+      case MuscleGroup.dorsales:
+        return 'Dorsales';
+      case MuscleGroup.trapecios:
+        return 'Trapecios';
+      case MuscleGroup.romboides:
+        return 'Romboides';
+      case MuscleGroup.erectoresEspinales:
+        return 'Erectores Espinales';
+      case MuscleGroup.deltoidesAnterior:
+        return 'Deltoides Anterior';
+      case MuscleGroup.deltoidesLateral:
+        return 'Deltoides Lateral';
+      case MuscleGroup.deltoidesPosterior:
+        return 'Deltoides Posterior';
+      case MuscleGroup.biceps:
+        return 'Bíceps';
+      case MuscleGroup.triceps:
+        return 'Tríceps';
+      case MuscleGroup.antebrazos:
+        return 'Antebrazos';
+      case MuscleGroup.abdominales:
+        return 'Abdominales';
+      case MuscleGroup.oblicuos:
+        return 'Oblicuos';
+      case MuscleGroup.transversoAbdominal:
+        return 'Transverso Abdominal';
+      case MuscleGroup.flexoresCadera:
+        return 'Flexores de Cadera';
+      case MuscleGroup.core:
+        return 'Core';
+    }
+  }
+
+  String get value => name;
+
+  static MuscleGroup fromString(String value) {
+    return MuscleGroup.values.firstWhere(
+      (e) => e.name.toLowerCase() == value.toLowerCase(),
+      orElse: () => MuscleGroup.core,
+    );
+  }
+}
+
 /// Modelo de máquina/equipo de gimnasio
 class MachineModel {
   final String id;
@@ -187,6 +276,10 @@ class MachineModel {
   final List<String>? tips;
   final List<String>? erroresComunes;
 
+  // Nuevos campos para grupos musculares específicos
+  final List<MuscleGroup>? musculosPrincipales;
+  final List<MuscleGroup>? musculosSecundarios;
+
   const MachineModel({
     required this.id,
     required this.nombre,
@@ -200,6 +293,8 @@ class MachineModel {
     this.defaultReps = 12,
     this.tips,
     this.erroresComunes,
+    this.musculosPrincipales,
+    this.musculosSecundarios,
   });
 
   /// Crear desde Firestore
@@ -233,6 +328,12 @@ class MachineModel {
       erroresComunes: (data['erroresComunes'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList(),
+      musculosPrincipales: (data['musculosPrincipales'] as List<dynamic>?)
+          ?.map((e) => MuscleGroupExtension.fromString(e.toString()))
+          .toList(),
+      musculosSecundarios: (data['musculosSecundarios'] as List<dynamic>?)
+          ?.map((e) => MuscleGroupExtension.fromString(e.toString()))
+          .toList(),
     );
   }
 
@@ -250,6 +351,8 @@ class MachineModel {
       'defaultReps': defaultReps,
       'tips': tips,
       'erroresComunes': erroresComunes,
+      'musculosPrincipales': musculosPrincipales?.map((e) => e.value).toList(),
+      'musculosSecundarios': musculosSecundarios?.map((e) => e.value).toList(),
     };
   }
 
@@ -267,6 +370,8 @@ class MachineModel {
     int? defaultReps,
     List<String>? tips,
     List<String>? erroresComunes,
+    List<MuscleGroup>? musculosPrincipales,
+    List<MuscleGroup>? musculosSecundarios,
   }) {
     return MachineModel(
       id: id ?? this.id,
@@ -281,6 +386,8 @@ class MachineModel {
       defaultReps: defaultReps ?? this.defaultReps,
       tips: tips ?? this.tips,
       erroresComunes: erroresComunes ?? this.erroresComunes,
+      musculosPrincipales: musculosPrincipales ?? this.musculosPrincipales,
+      musculosSecundarios: musculosSecundarios ?? this.musculosSecundarios,
     );
   }
 }

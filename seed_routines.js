@@ -162,7 +162,8 @@ const routines = [
     parteDelCuerpo: 'fullBody',
     genero: 'hombre',
     duracionMinutos: 60,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80',
     ejercicios: [
       createExercise('treadmill', 1, 10, '10 min calentamiento', 0),
       createExercise('leg_press', 4, 12, '', 1),
@@ -183,7 +184,8 @@ const routines = [
     parteDelCuerpo: 'fullBody',
     genero: 'mujer',
     duracionMinutos: 50,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&q=80',
     ejercicios: [
       createExercise('treadmill', 1, 10, '10 min calentamiento', 0),
       createExercise('leg_press', 3, 15, '', 1),
@@ -204,7 +206,8 @@ const routines = [
     parteDelCuerpo: 'piernas',
     genero: 'hombre',
     duracionMinutos: 60,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800&q=80',
     ejercicios: [
       createExercise('treadmill', 1, 5, '5 min calentamiento', 0),
       createExercise('squat_rack', 5, 8, '', 1),
@@ -224,7 +227,8 @@ const routines = [
     parteDelCuerpo: 'piernas',
     genero: 'mujer',
     duracionMinutos: 50,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1550345332-09e3ac987658?w=800&q=80',
     ejercicios: [
       createExercise('step_stepper', 1, 10, '10 min calentamiento', 0),
       createExercise('glute_machine', 4, 15, '', 1),
@@ -245,7 +249,8 @@ const routines = [
     parteDelCuerpo: 'trenSuperior',
     genero: 'hombre',
     duracionMinutos: 55,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800&q=80',
     ejercicios: [
       createExercise('flat_bench', 4, 10, '', 0),
       createExercise('incline_bench', 4, 10, '', 1),
@@ -266,7 +271,8 @@ const routines = [
     parteDelCuerpo: 'trenSuperior',
     genero: 'mujer',
     duracionMinutos: 45,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80',
     ejercicios: [
       createExercise('chest_press', 3, 15, '', 0),
       createExercise('pec_deck', 3, 15, '', 1),
@@ -286,7 +292,8 @@ const routines = [
     parteDelCuerpo: 'trenSuperior',
     genero: 'unisex',
     duracionMinutos: 50,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&q=80',
     ejercicios: [
       createExercise('flat_bench', 4, 10, '', 0),
       createExercise('incline_bench', 3, 12, '', 1),
@@ -305,7 +312,8 @@ const routines = [
     parteDelCuerpo: 'trenSuperior',
     genero: 'unisex',
     duracionMinutos: 40,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=800&q=80',
     ejercicios: [
       createExercise('lat_pulldown', 4, 10, '', 0),
       createExercise('seated_row', 4, 12, '', 1),
@@ -322,7 +330,8 @@ const routines = [
     parteDelCuerpo: 'mixto',
     genero: 'unisex',
     duracionMinutos: 30,
-    esPlantilla: true,
+    esPlantilla: false,
+    imageUrl: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=800&q=80',
     ejercicios: [
       createExercise('treadmill', 1, 10, '10 min calentamiento', 0),
       createExercise('rowing_machine', 3, 2, 'intervalos de 2 min', 1),

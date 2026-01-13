@@ -19,11 +19,13 @@ import '../../features/trainer/presentation/pages/trainer_clients_page.dart';
 import '../../features/trainer/presentation/pages/trainer_routines_page.dart';
 import '../../features/trainer/presentation/pages/trainer_machines_page.dart';
 import '../../features/trainer/presentation/pages/trainer_profile_page.dart';
-import '../../features/trainer/presentation/pages/trainer_notifications_page.dart';
+import '../../features/trainer/presentation/pages/trainer_notifications_center_page.dart';
 import '../../features/trainer/presentation/pages/store_admin_page.dart';
 import '../../features/trainer/presentation/pages/product_form_page.dart';
 import '../../features/trainer/presentation/pages/send_announcement_page.dart';
 import '../../features/trainer/presentation/pages/trainer_requests_page.dart';
+import '../../features/trainer/presentation/pages/notification_settings_page.dart';
+import '../../scripts/seed_runner_page.dart';
 
 // Client pages
 import '../../features/client/presentation/pages/client_shell.dart';
@@ -47,7 +49,9 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';
+  static const String privacy = '/privacy';
   static const String privacyPolicy = '/privacy-policy';
+  static const String terms = '/terms';
   static const String termsConditions = '/terms-conditions';
 
   // Legacy routes (keeping for backward compatibility)
@@ -60,18 +64,22 @@ class AppRoutes {
   static const String trainerClients = '/trainer/clients';
   static const String trainerRoutines = '/trainer/routines';
   static const String trainerMachines = '/trainer/machines';
+  static const String trainerStore = '/trainer/store';
   static const String trainerProfile = '/trainer/profile';
   static const String trainerNotifications = '/trainer/notifications';
   static const String trainerStoreAdmin = '/trainer/store-admin';
   static const String trainerProductForm = '/trainer/store-admin/product/:id';
   static const String trainerSendAnnouncement = '/trainer/send-announcement';
   static const String trainerRequests = '/trainer/requests';
+  static const String trainerNotificationSettings = '/trainer/notification-settings';
+  static const String seed = '/seed';
 
   // Client routes
   static const String clientOnboarding = '/client/onboarding';
   static const String clientHome = '/client/home';
   static const String clientExplore = '/client/explore';
   static const String clientHistory = '/client/history';
+  static const String clientHistoryFull = '/client/history-full';
   static const String clientProfile = '/client/profile';
   static const String clientStore = '/client/store';
   static const String clientNotifications = '/client/notifications';
@@ -108,7 +116,9 @@ class AppRouter {
           AppRoutes.login,
           AppRoutes.signup,
           AppRoutes.forgotPassword,
+          AppRoutes.privacy,
           AppRoutes.privacyPolicy,
+          AppRoutes.terms,
           AppRoutes.termsConditions,
         ];
 
@@ -199,24 +209,46 @@ class AppRouter {
           ),
         ),
 
-        // Privacy Policy Page
+        // Privacy Policy Page - URL: /privacy
+        GoRoute(
+          path: AppRoutes.privacy,
+          name: 'privacy',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: PrivacyPolicyPage(from: state.uri.queryParameters['from']),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
+        // Terms and Conditions Page - URL: /terms
+        GoRoute(
+          path: AppRoutes.terms,
+          name: 'terms',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: TermsConditionsPage(from: state.uri.queryParameters['from']),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
+        // Privacy Policy Page (alternate URL) - URL: /privacy-policy
         GoRoute(
           path: AppRoutes.privacyPolicy,
           name: 'privacyPolicy',
           pageBuilder: (context, state) => CustomTransitionPage(
             key: state.pageKey,
-            child: const PrivacyPolicyPage(),
+            child: PrivacyPolicyPage(from: state.uri.queryParameters['from']),
             transitionsBuilder: _slideTransition,
           ),
         ),
 
-        // Terms and Conditions Page
+        // Terms and Conditions Page (alternate URL) - URL: /terms-conditions
         GoRoute(
           path: AppRoutes.termsConditions,
           name: 'termsConditions',
           pageBuilder: (context, state) => CustomTransitionPage(
             key: state.pageKey,
-            child: const TermsConditionsPage(),
+            child: TermsConditionsPage(from: state.uri.queryParameters['from']),
             transitionsBuilder: _slideTransition,
           ),
         ),
@@ -302,7 +334,7 @@ class AppRouter {
           ),
         ),
 
-        // Trainer Machines - wrapped with RoleGate
+        // Trainer Machines - wrapped with RoleGate (legacy route)
         GoRoute(
           path: AppRoutes.trainerMachines,
           name: 'trainerMachines',
@@ -319,18 +351,43 @@ class AppRouter {
           ),
         ),
 
-        // Trainer Notifications - wrapped with RoleGate
+        // Trainer Store (Tienda) - wrapped with RoleGate and TrainerShell
         GoRoute(
-          path: AppRoutes.trainerNotifications,
-          name: 'trainerNotifications',
+          path: AppRoutes.trainerStore,
+          name: 'trainerStore',
           pageBuilder: (context, state) => CustomTransitionPage(
             key: state.pageKey,
             child: RoleGate(
               allowedRoles: const [UserRole.entrenador],
-              child: const TrainerNotificationsPage(),
+              child: TrainerShell(
+                currentIndex: 2,
+                child: const StoreAdminPage(),
+              ),
             ),
-            transitionsBuilder: _slideTransition,
+            transitionsBuilder: _fadeTransition,
           ),
+        ),
+
+        // Trainer Notifications Center - wrapped with RoleGate and TrainerShell
+        GoRoute(
+          path: AppRoutes.trainerNotifications,
+          name: 'trainerNotifications',
+          pageBuilder: (context, state) {
+            // Obtener tab inicial desde query params (0=entrenamientos, 1=pedidos)
+            final tabParam = state.uri.queryParameters['tab'];
+            final initialTab = tabParam != null ? int.tryParse(tabParam) ?? 0 : 0;
+            return CustomTransitionPage(
+              key: state.pageKey,
+              child: RoleGate(
+                allowedRoles: const [UserRole.entrenador],
+                child: TrainerShell(
+                  currentIndex: 3,
+                  child: TrainerNotificationsCenterPage(initialTab: initialTab),
+                ),
+              ),
+              transitionsBuilder: _fadeTransition,
+            );
+          },
         ),
 
         // Trainer Profile - wrapped with RoleGate
@@ -409,6 +466,34 @@ class AppRouter {
           ),
         ),
 
+        // Trainer Notification Settings - wrapped with RoleGate
+        GoRoute(
+          path: AppRoutes.trainerNotificationSettings,
+          name: 'trainerNotificationSettings',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const RoleGate(
+              allowedRoles: [UserRole.entrenador],
+              child: NotificationSettingsPage(),
+            ),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
+        // Seed Runner Page - Solo para desarrollo/administración
+        GoRoute(
+          path: AppRoutes.seed,
+          name: 'seed',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const RoleGate(
+              allowedRoles: [UserRole.entrenador],
+              child: SeedRunnerPage(),
+            ),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
         // ============ CLIENT ROUTES ============
 
         // Client Onboarding - wrapped with RoleGate
@@ -479,6 +564,21 @@ class AppRouter {
           ),
         ),
 
+        // Client History Full (without shell/navbar) - wrapped with RoleGate
+        GoRoute(
+          path: AppRoutes.clientHistoryFull,
+          name: 'clientHistoryFull',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const RoleGate(
+              allowedRoles: [UserRole.cliente],
+              requireOnboardingComplete: true,
+              child: ClientHistoryPage(),
+            ),
+            transitionsBuilder: _slideTransition,
+          ),
+        ),
+
         // Client Profile - wrapped with RoleGate
         GoRoute(
           path: AppRoutes.clientProfile,
@@ -515,18 +615,21 @@ class AppRouter {
           ),
         ),
 
-        // Client Notifications - wrapped with RoleGate
+        // Client Notifications - wrapped with RoleGate and ClientShell
         GoRoute(
           path: AppRoutes.clientNotifications,
           name: 'clientNotifications',
           pageBuilder: (context, state) => CustomTransitionPage(
             key: state.pageKey,
-            child: const RoleGate(
-              allowedRoles: [UserRole.cliente],
+            child: RoleGate(
+              allowedRoles: const [UserRole.cliente],
               requireOnboardingComplete: true,
-              child: ClientNotificationsPage(),
+              child: ClientShell(
+                currentIndex: 2,
+                child: const ClientNotificationsPage(),
+              ),
             ),
-            transitionsBuilder: _slideTransition,
+            transitionsBuilder: _fadeTransition,
           ),
         ),
       ],

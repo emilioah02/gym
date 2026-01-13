@@ -1,4 +1,4 @@
-import 'machine_model.dart';
+import '../../../../core/models/machine_model.dart';
 
 /// Model representing a workout routine
 class RoutineModel {

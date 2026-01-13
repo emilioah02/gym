@@ -226,7 +226,7 @@ Future<void> seedRoutines() async {
       duracionMinutos: 60,
       imageUrl:
           'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80',
-      esPlantilla: true,
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 2: Tonificación Cuerpo Completo (MUJERES) ============
@@ -250,8 +250,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 50,
       imageUrl:
-          'https://images.unsplash.com/photo-1550345332-054861f5c7a3?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 3: Enfoque Piernas (HOMBRES) ============
@@ -273,8 +273,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 60,
       imageUrl:
-          'https://images.unsplash.com/photo-1434682881908-b43d0467b798?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 4: Enfoque Glúteos y Piernas (MUJERES) ============
@@ -297,8 +297,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 50,
       imageUrl:
-          'https://images.unsplash.com/photo-1550345332-054861f5c7a3?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1550345332-09e3ac987658?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 5: Potencia Tren Superior (HOMBRES) ============
@@ -322,8 +322,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 55,
       imageUrl:
-          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 6: Esculpir Tren Superior (MUJERES) ============
@@ -346,8 +346,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 45,
       imageUrl:
-          'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 7: Día de Empuje (UNISEX) ============
@@ -369,8 +369,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 50,
       imageUrl:
-          'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 8: Día de Jalón (UNISEX) ============
@@ -390,8 +390,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 40,
       imageUrl:
-          'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=800&q=80',
+      esPlantilla: false,
     ),
 
     // ============ RUTINA 9: Cardio HIIT (UNISEX) ============
@@ -412,8 +412,8 @@ Future<void> seedRoutines() async {
       ],
       duracionMinutos: 30,
       imageUrl:
-          'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=800&q=80',
-      esPlantilla: true,
+          'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=800&q=80',
+      esPlantilla: false,
     ),
   ];
 

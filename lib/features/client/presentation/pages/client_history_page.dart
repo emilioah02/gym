@@ -15,6 +15,7 @@ class ClientHistoryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(currentUserHistoryProvider);
+    final unreadCount = ref.watch(unreadAnnouncementsCountProvider).value ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
@@ -23,13 +24,13 @@ class ClientHistoryPage extends ConsumerWidget {
           _buildBackground(),
           CustomScrollView(
             slivers: [
-              _buildAppBar(),
+              _buildAppBar(context, unreadCount),
               historyAsync.when(
                 data: (history) {
                   if (history.isEmpty) {
                     return SliverFillRemaining(child: _buildEmptyState());
                   }
-                  return _buildHistoryList(history);
+                  return _buildHistoryList(context, ref, history);
                 },
                 loading: () => const SliverFillRemaining(
                   child: Center(
@@ -63,16 +64,81 @@ class ClientHistoryPage extends ConsumerWidget {
     );
   }
 
-  SliverAppBar _buildAppBar() {
+  SliverAppBar _buildAppBar(BuildContext context, int unreadCount) {
     return SliverAppBar(
+      expandedHeight: 100,
       floating: true,
+      pinned: false,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      title: Text(
-        'Historial',
-        style: AppTypography.headlineMedium.copyWith(
-          color: AppColors.textPrimaryDark,
-          fontWeight: FontWeight.w700,
+      automaticallyImplyLeading: false,
+      flexibleSpace: FlexibleSpaceBar(
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.history_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Historial',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Tus entrenamientos completados',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingS),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -143,7 +209,7 @@ class ClientHistoryPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHistoryList(List<TrainingHistory> history) {
+  Widget _buildHistoryList(BuildContext context, WidgetRef ref, List<TrainingHistory> history) {
     // Agrupar por mes
     final grouped = <String, List<TrainingHistory>>{};
     for (final item in history) {
@@ -200,7 +266,10 @@ class ClientHistoryPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              ...items.map((item) => _HistoryCard(history: item)),
+              ...items.map((item) => _HistoryCard(
+                history: item,
+                onDelete: () => _confirmDeleteHistory(context, ref, item),
+              )),
             ],
           );
         },
@@ -208,12 +277,76 @@ class ClientHistoryPage extends ConsumerWidget {
       ),
     );
   }
+
+  /// Muestra diálogo de confirmación para eliminar entrada del historial
+  void _confirmDeleteHistory(BuildContext context, WidgetRef ref, TrainingHistory history) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surfaceDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
+        ),
+        title: Text(
+          'Eliminar entrenamiento',
+          style: AppTypography.titleLarge.copyWith(
+            color: AppColors.textPrimaryDark,
+          ),
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar este entrenamiento del ${DateFormat('d MMMM yyyy', 'es').format(history.fecha)}?',
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.textSecondaryDark,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.textSecondaryDark),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              try {
+                await ref.read(firebaseServiceProvider).deleteTrainingHistory(history.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Entrenamiento eliminado'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al eliminar: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _HistoryCard extends StatelessWidget {
   final TrainingHistory history;
+  final VoidCallback? onDelete;
 
-  const _HistoryCard({required this.history});
+  const _HistoryCard({required this.history, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -222,108 +355,135 @@ class _HistoryCard extends StatelessWidget {
         horizontal: AppConstants.spacingM,
         vertical: AppConstants.spacingS,
       ),
-      child: GlassCard(
-        child: Row(
-          children: [
-            // Fecha
-            Container(
-              width: 50,
-              padding: const EdgeInsets.all(AppConstants.spacingS),
-              decoration: BoxDecoration(
-                color: history.completada
-                    ? AppColors.success.withValues(alpha: 0.2)
-                    : AppColors.warning.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(AppConstants.radiusM),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '${history.fecha.day}',
-                    style: AppTypography.titleLarge.copyWith(
-                      color: history.completada ? AppColors.success : AppColors.warning,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    DateFormat('MMM', 'es').format(history.fecha).toUpperCase(),
-                    style: AppTypography.labelSmall.copyWith(
-                      color: history.completada ? AppColors.success : AppColors.warning,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppConstants.spacingM),
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    history.rutinaNombre,
-                    style: AppTypography.titleSmall.copyWith(
-                      color: AppColors.textPrimaryDark,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        size: 14,
-                        color: AppColors.textSecondaryDark,
+      child: Dismissible(
+        key: Key(history.id),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (direction) async {
+          onDelete?.call();
+          return false; // No eliminar automáticamente, el callback maneja la confirmación
+        },
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: AppConstants.spacingL),
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(AppConstants.radiusM),
+          ),
+          child: const Icon(
+            Icons.delete,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+        child: GlassCard(
+          child: Row(
+            children: [
+              // Fecha
+              Container(
+                width: 50,
+                padding: const EdgeInsets.all(AppConstants.spacingS),
+                decoration: BoxDecoration(
+                  color: history.completada
+                      ? AppColors.success.withValues(alpha: 0.2)
+                      : AppColors.warning.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '${history.fecha.day}',
+                      style: AppTypography.titleLarge.copyWith(
+                        color: history.completada ? AppColors.success : AppColors.warning,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        history.duracionMinutos != null
-                            ? '${history.duracionMinutos} min'
-                            : '~60 min',
-                        style: AppTypography.bodySmall.copyWith(
+                    ),
+                    Text(
+                      DateFormat('MMM', 'es').format(history.fecha).toUpperCase(),
+                      style: AppTypography.labelSmall.copyWith(
+                        color: history.completada ? AppColors.success : AppColors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingM),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      history.rutinaNombre,
+                      style: AppTypography.titleSmall.copyWith(
+                        color: AppColors.textPrimaryDark,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
+                          size: 14,
                           color: AppColors.textSecondaryDark,
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        history.completada
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        size: 14,
-                        color: history.completada
-                            ? AppColors.success
-                            : AppColors.textSecondaryDark,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        history.completada ? 'Completada' : 'Parcial',
-                        style: AppTypography.bodySmall.copyWith(
+                        const SizedBox(width: 4),
+                        Text(
+                          history.duracionMinutos != null
+                              ? '${history.duracionMinutos} min'
+                              : '~60 min',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondaryDark,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(
+                          history.completada
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          size: 14,
                           color: history.completada
                               ? AppColors.success
                               : AppColors.textSecondaryDark,
                         ),
+                        const SizedBox(width: 4),
+                        Text(
+                          history.completada ? 'Completada' : 'Parcial',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: history.completada
+                                ? AppColors.success
+                                : AppColors.textSecondaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (history.notas != null && history.notas!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        history.notas!,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.primary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ),
-                  if (history.notas != null && history.notas!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      history.notas!,
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.primary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondaryDark,
-            ),
-          ],
+              // Botón de eliminar
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.textSecondaryDark,
+                  size: 20,
+                ),
+                tooltip: 'Eliminar',
+              ),
+            ],
+          ),
         ),
       ),
     );

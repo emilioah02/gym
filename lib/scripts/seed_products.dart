@@ -11,6 +11,14 @@ Future<void> seedProducts() async {
   final firestore = FirebaseFirestore.instance;
   final productsCollection = firestore.collection('Producto');
 
+  // Primero eliminar todos los productos existentes
+  print('🗑️ Eliminando productos existentes...');
+  final existingProducts = await productsCollection.get();
+  for (final doc in existingProducts.docs) {
+    await doc.reference.delete();
+  }
+  print('✅ ${existingProducts.docs.length} productos eliminados\n');
+
   // Lista de productos de ejemplo
   final products = [
     // BEBIDAS

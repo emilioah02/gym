@@ -3,10 +3,29 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/typography.dart';
+import '../../../../core/router/app_router.dart';
 
 /// Terms and Conditions Page - Required by Google Play Store
+/// Accessible via: https://mexican-bulking.web.app/terms
 class TermsConditionsPage extends StatelessWidget {
-  const TermsConditionsPage({super.key});
+  final String? from;
+
+  const TermsConditionsPage({super.key, this.from});
+
+  void _handleBack(BuildContext context) {
+    // Navegar según el parámetro 'from'
+    switch (from) {
+      case 'login':
+        context.go(AppRoutes.login);
+        break;
+      case 'landing':
+        context.go(AppRoutes.landing);
+        break;
+      default:
+        // Si no hay parámetro, ir al landing
+        context.go(AppRoutes.landing);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +36,7 @@ class TermsConditionsPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimaryDark),
-          onPressed: () => context.pop(),
+          onPressed: () => _handleBack(context),
         ),
         title: Text(
           'Términos y Condiciones',

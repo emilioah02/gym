@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint, kDebugMode;
+import 'package:flutter/services.dart';
+import 'web_notification_stub.dart'
+    if (dart.library.html) 'web_notification_impl.dart' as web_notif;
 
 /// Modelo para notificaciones in-app
 class InAppNotification {
@@ -11,6 +13,8 @@ class InAppNotification {
   final String? tipo;
   final Map<String, dynamic>? data;
   final DateTime timestamp;
+  final bool playSound;
+  final bool vibrate;
 
   InAppNotification({
     required this.title,
@@ -18,10 +22,13 @@ class InAppNotification {
     this.tipo,
     this.data,
     DateTime? timestamp,
+    this.playSound = true,
+    this.vibrate = true,
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
 /// Servicio para gestionar notificaciones push con Firebase Cloud Messaging
+/// Incluye soporte para notificaciones nativas del sistema, sonido y vibración
 class NotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -34,64 +41,98 @@ class NotificationService {
   static Stream<InAppNotification> get inAppNotifications =>
       _inAppNotificationController.stream;
 
-  /// Mostrar una notificación in-app
-  static void showInAppNotification({
+  /// Mostrar una notificación in-app con sonido y vibración
+  static Future<void> showInAppNotification({
     required String title,
     required String body,
     String? tipo,
     Map<String, dynamic>? data,
-  }) {
+    bool playSound = true,
+    bool vibrate = true,
+    bool showSystemNotification = true,
+  }) async {
+    // Agregar a la cola de notificaciones in-app
     _inAppNotificationController.add(InAppNotification(
       title: title,
       body: body,
       tipo: tipo,
       data: data,
+      playSound: playSound,
+      vibrate: vibrate,
     ));
+
+    // Vibrar el dispositivo
+    if (vibrate) {
+      await _vibrateDevice();
+    }
+
+    // Mostrar notificación del sistema (nativa)
+    if (showSystemNotification && kIsWeb) {
+      await web_notif.showWebNotification(title, body);
+    }
+  }
+
+  /// Vibrar el dispositivo
+  static Future<void> _vibrateDevice() async {
+    try {
+      if (kIsWeb) {
+        // Vibración en web
+        web_notif.webVibrate();
+      } else {
+        // Vibración en móvil usando HapticFeedback
+        await HapticFeedback.heavyImpact();
+        await Future.delayed(const Duration(milliseconds: 100));
+        await HapticFeedback.mediumImpact();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error al vibrar: $e');
+    }
+  }
+
+  /// Solicitar permisos de notificación web
+  static Future<bool> requestWebNotificationPermission() async {
+    if (!kIsWeb) return true;
+    return web_notif.requestWebNotificationPermission();
   }
 
   /// Inicializar el servicio de notificaciones
   Future<void> initialize() async {
-    // Solicitar permisos en iOS
-    if (!kIsWeb && Platform.isIOS) {
-      await _requestIOSPermissions();
+    try {
+      // Solicitar permisos en web
+      if (kIsWeb) {
+        await requestWebNotificationPermission();
+      } else {
+        // Solicitar permisos en móvil
+        await _requestMobilePermissions();
+      }
+
+      // Obtener el token FCM
+      await getToken();
+
+      // Configurar listeners para notificaciones
+      _setupNotificationListeners();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error inicializando notificaciones: $e');
     }
-
-    // Solicitar permisos en Android 13+
-    if (!kIsWeb && Platform.isAndroid) {
-      await _requestAndroidPermissions();
-    }
-
-    // Obtener el token FCM
-    await getToken();
-
-    // Configurar listeners para notificaciones
-    _setupNotificationListeners();
   }
 
-  /// Solicitar permisos en iOS
-  Future<void> _requestIOSPermissions() async {
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
+  /// Solicitar permisos en móvil (iOS/Android)
+  Future<void> _requestMobilePermissions() async {
+    try {
+      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: true,
+        provisional: false,
+        sound: true,
+      );
 
-    print('📱 iOS Notification permission: ${settings.authorizationStatus}');
-  }
-
-  /// Solicitar permisos en Android
-  Future<void> _requestAndroidPermissions() async {
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    print('📱 Android Notification permission: ${settings.authorizationStatus}');
+      if (kDebugMode) debugPrint('Notification permission: ${settings.authorizationStatus}');
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error solicitando permisos: $e');
+    }
   }
 
   /// Obtener el token FCM del dispositivo
@@ -99,8 +140,6 @@ class NotificationService {
     try {
       if (kIsWeb) {
         // Para web, necesitas configurar vapidKey
-        // Genera tu VAPID key en: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-        // Instrucciones completas en: NOTIFICACIONES_WEB_SETUP.md
         return await _firebaseMessaging.getToken(
           vapidKey: 'BH7hosCs64NRmpORuyYAB0LLNkrgmSz5plfUlvpNx0A28BnYZHmD4u9YgSy6sQfeUmsNP3q9RAbFvFR9s68weiY',
         );
@@ -108,11 +147,7 @@ class NotificationService {
         return await _firebaseMessaging.getToken();
       }
     } catch (e) {
-      print('❌ Error obteniendo FCM token: $e');
-      if (kIsWeb) {
-        print('💡 Para web: Asegúrate de haber configurado el VAPID key en Firebase Console');
-        print('📖 Lee NOTIFICACIONES_WEB_SETUP.md para más detalles');
-      }
+      if (kDebugMode) debugPrint('Error obteniendo FCM token: $e');
       return null;
     }
   }
@@ -121,68 +156,69 @@ class NotificationService {
   Future<void> saveTokenForUser(String userId) async {
     final token = await getToken();
     if (token != null) {
+      String platform = 'unknown';
+      if (kIsWeb) {
+        platform = 'web';
+      } else {
+        // Usar try-catch porque Platform no está disponible en web
+        try {
+          platform = _getPlatformName();
+        } catch (_) {
+          platform = 'mobile';
+        }
+      }
+
       await _firestore.collection('users').doc(userId).update({
         'fcmToken': token,
-        'platform': kIsWeb ? 'web' : Platform.operatingSystem,
+        'platform': platform,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Token guardado para usuario $userId');
+      if (kDebugMode) debugPrint('Token guardado para usuario $userId');
     }
+  }
+
+  String _getPlatformName() {
+    // Este método solo se llama en móvil, no en web
+    return 'mobile';
   }
 
   /// Configurar listeners para notificaciones
   void _setupNotificationListeners() {
     // Cuando la app está en foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('📬 Mensaje recibido en foreground: ${message.notification?.title}');
-      _handleMessage(message);
+      _handleMessage(message, inForeground: true);
     });
 
     // Cuando el usuario toca una notificación (app en background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('📬 Notificación tocada (background): ${message.notification?.title}');
-      _handleMessage(message);
+      _handleMessage(message, inForeground: false);
     });
 
     // Verificar si la app fue abierta por una notificación
     _firebaseMessaging.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
-        print('📬 App abierta por notificación: ${message.notification?.title}');
-        _handleMessage(message);
+        _handleMessage(message, inForeground: false);
       }
     });
   }
 
   /// Manejar el mensaje recibido
-  void _handleMessage(RemoteMessage message) {
-    print('📬 Datos del mensaje: ${message.data}');
-
-    // Mostrar banner in-app
+  void _handleMessage(RemoteMessage message, {bool inForeground = true}) {
     final title = message.notification?.title ?? 'Nueva notificación';
     final body = message.notification?.body ?? '';
     final tipo = message.data['tipo'] as String?;
 
+    // Mostrar banner in-app con sonido y vibración
     showInAppNotification(
       title: title,
       body: body,
       tipo: tipo,
       data: message.data,
+      playSound: true,
+      vibrate: true,
+      // Solo mostrar notificación del sistema si está en background
+      showSystemNotification: !inForeground,
     );
-
-    // Log según el tipo de notificación
-    switch (tipo) {
-      case 'ayuda_ejercicio':
-        print('🏋️ Cliente solicita ayuda con ejercicio');
-        break;
-      case 'rutina_asignada':
-        print('📋 Nueva rutina asignada');
-        break;
-      case 'nuevo_pedido':
-        print('🛒 Nuevo pedido recibido');
-        break;
-      default:
-        print('📬 Tipo de notificación: $tipo');
-    }
   }
 
   /// Enviar notificación push a un usuario específico
@@ -198,7 +234,6 @@ class NotificationService {
       final fcmToken = userDoc.data()?['fcmToken'] as String?;
 
       if (fcmToken == null) {
-        print('⚠️ Usuario $recipientUserId no tiene token FCM registrado');
         return;
       }
 
@@ -211,13 +246,37 @@ class NotificationService {
         },
         'data': data ?? {},
         'priority': 'high',
+        'android': {
+          'priority': 'high',
+          'notification': {
+            'sound': 'default',
+            'defaultSound': true,
+            'defaultVibrateTimings': true,
+            'channelId': 'high_importance_channel',
+          },
+        },
+        'apns': {
+          'payload': {
+            'aps': {
+              'sound': 'default',
+              'badge': 1,
+            },
+          },
+        },
+        'webpush': {
+          'notification': {
+            'icon': '/icons/Icon-192.png',
+            'badge': '/icons/Icon-192.png',
+            'vibrate': [200, 100, 200],
+            'requireInteraction': true,
+          },
+        },
         'createdAt': FieldValue.serverTimestamp(),
         'processed': false,
       });
 
-      print('✅ Notificación push encolada para $recipientUserId');
     } catch (e) {
-      print('❌ Error enviando notificación push: $e');
+      if (kDebugMode) debugPrint('Error enviando notificación push: $e');
     }
   }
 
@@ -225,9 +284,8 @@ class NotificationService {
   Future<void> subscribeToTopic(String topic) async {
     try {
       await _firebaseMessaging.subscribeToTopic(topic);
-      print('✅ Suscrito al topic: $topic');
     } catch (e) {
-      print('❌ Error suscribiéndose al topic $topic: $e');
+      if (kDebugMode) debugPrint('Error suscribiéndose al topic $topic: $e');
     }
   }
 
@@ -235,9 +293,8 @@ class NotificationService {
   Future<void> unsubscribeFromTopic(String topic) async {
     try {
       await _firebaseMessaging.unsubscribeFromTopic(topic);
-      print('✅ Desuscrito del topic: $topic');
     } catch (e) {
-      print('❌ Error desuscribiéndose del topic $topic: $e');
+      if (kDebugMode) debugPrint('Error desuscribiéndose del topic $topic: $e');
     }
   }
 
@@ -248,9 +305,8 @@ class NotificationService {
         'fcmToken': FieldValue.delete(),
       });
       await _firebaseMessaging.deleteToken();
-      print('✅ Token FCM eliminado para usuario $userId');
     } catch (e) {
-      print('❌ Error eliminando token: $e');
+      if (kDebugMode) debugPrint('Error eliminando token: $e');
     }
   }
 }

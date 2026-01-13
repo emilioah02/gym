@@ -87,38 +87,78 @@ class _StoreAdminPageState extends ConsumerState<StoreAdminPage> {
 
   SliverAppBar _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 80,
+      expandedHeight: 100,
       floating: true,
       pinned: false,
       backgroundColor: Colors.transparent,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimaryDark),
-        onPressed: () {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go('/trainer');
-          }
-        },
-      ),
+      elevation: 0,
+      automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
-        background: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            60,
-            60,
-            AppConstants.spacingL,
-            AppConstants.spacingM,
-          ),
-          child: Row(
-            children: [
-              Text(
-                'Administrar Tienda',
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.textPrimaryDark,
-                  fontWeight: FontWeight.w700,
+        background: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingM,
+              AppConstants.spacingS,
+              AppConstants.spacingM,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.shopping_bag_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: AppConstants.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Tienda',
+                            style: AppTypography.titleLarge.copyWith(
+                              color: AppColors.textPrimaryDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Todo lo que necesitas para entrenar',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: AppConstants.spacingS),
+              ],
+            ),
           ),
         ),
       ),
@@ -414,15 +454,16 @@ class _StoreAdminPageState extends ConsumerState<StoreAdminPage> {
   }
 
   Widget _buildFAB(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => _addProduct(),
-      backgroundColor: AppColors.primary,
-      icon: const Icon(Icons.add, color: Colors.white),
-      label: const Text(
-        'Agregar Producto',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 110),
+      child: FloatingActionButton.extended(
+        onPressed: () => _addProduct(),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.backgroundDark,
+        icon: const Icon(Icons.add),
+        label: const Text(
+          'Agregar Producto',
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
     );

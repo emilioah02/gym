@@ -50,54 +50,127 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   AuthNotifier(this._authService, this._ref) : super(const AuthState());
 
+  // Lista de emails de administradores absolutos (misma que en firestore.rules)
+  static const List<String> _absoluteAdminEmails = [
+    'emilioah02@gmail.com',
+    'diegopeniche.galindo25@gmail.com',
+  ];
+
+  /// Verifica si un email es de admin absoluto
+  bool _isAbsoluteAdmin(String email) {
+    return _absoluteAdminEmails.contains(email.toLowerCase());
+  }
+
   Future<bool> signInWithGoogle() async {
-    print('🔐 [DEBUG] signInWithGoogle() - INICIANDO');
+    print('🔐 [AUTH] signInWithGoogle() - INICIANDO');
     state = state.copyWith(isLoading: true, error: null);
+
+    // IMPORTANTE: Resetear el activeUserIdProvider para asegurar estado limpio
+    // Esto previene que un usuario anterior en "modo prueba" afecte al nuevo usuario
+    _ref.read(activeUserIdProvider.notifier).state = null;
+    print('🔐 [AUTH] activeUserIdProvider reseteado a null');
+
     try {
       final result = await _authService.signInWithGoogle();
-      print('🔐 [DEBUG] Auth result: ${result?.user?.email}');
+      print('🔐 [AUTH] Auth result: ${result?.user?.email}');
 
       if (result != null && result.user != null) {
         final firebaseUser = result.user!;
-        print('🔐 [DEBUG] Usuario autenticado: ${firebaseUser.uid} - ${firebaseUser.email}');
+        final email = firebaseUser.email ?? '';
+        final uid = firebaseUser.uid;
+
+        print('🔐 [AUTH] Usuario autenticado: $uid - $email');
+
+        final firebaseService = _ref.read(firebaseServiceProvider);
 
         // Verificar si el usuario ya existe en Firestore
-        final firebaseService = _ref.read(firebaseServiceProvider);
-        final existingUser = await firebaseService.getUser(firebaseUser.uid);
-
-        print('🔐 [DEBUG] Usuario existe en Firestore: ${existingUser != null}');
+        final existingUser = await firebaseService.getUser(uid);
+        print('🔐 [AUTH] Usuario existe en Firestore: ${existingUser != null}');
 
         UserRole userRole;
 
         if (existingUser == null) {
-          // El usuario no existe en Firestore, crearlo
-          print('🔐 [DEBUG] Creando usuario en Firestore...');
+          // ========== USUARIO NUEVO ==========
+          print('🔐 [AUTH] Creando usuario nuevo en Firestore...');
 
-          // Determinar el rol
-          userRole = await firebaseService.getUserRole(firebaseUser.email!);
-          print('🔐 [DEBUG] Rol del usuario: $userRole');
+          // Determinar el rol inicial:
+          // 1. Si es admin absoluto -> admin
+          // 2. Si está en colección trainers -> verificar después de crear
+          // 3. Default -> cliente
+
+          if (_isAbsoluteAdmin(email)) {
+            // Los admins absolutos se crean directamente como admin
+            userRole = UserRole.admin;
+            print('🔐 [AUTH] Email es admin absoluto -> rol: admin');
+          } else {
+            // Todos los demás usuarios se crean como cliente
+            // (Las reglas de Firestore solo permiten crear con rol 'cliente')
+            userRole = UserRole.cliente;
+            print('🔐 [AUTH] Usuario normal -> rol: cliente');
+          }
 
           final newUser = UserModel(
-            uid: firebaseUser.uid,
-            email: firebaseUser.email!,
+            uid: uid,
+            email: email,
             nombre: firebaseUser.displayName,
             photoUrl: firebaseUser.photoURL,
             rol: userRole,
-            onboardingCompleto: false, // Siempre false para nuevos usuarios
+            onboardingCompleto: false,
           );
 
           await firebaseService.saveUser(newUser);
-          print('✅ [DEBUG] Usuario creado en Firestore exitosamente');
+          print('✅ [AUTH] Usuario creado en Firestore exitosamente con rol: ${userRole.value}');
+
+          // Si el email está en la colección 'trainers' y el usuario no es admin,
+          // notificar para que un admin lo actualice manualmente
+          if (!_isAbsoluteAdmin(email)) {
+            final isInTrainersCollection = await firebaseService.isTrainer(email);
+            if (isInTrainersCollection) {
+              print('⚠️ [AUTH] Email está en colección trainers. Un admin debe actualizar el rol.');
+            }
+          }
         } else {
-          print('✅ [DEBUG] Usuario ya existe en Firestore');
+          // ========== USUARIO EXISTENTE ==========
+          print('✅ [AUTH] Usuario ya existe en Firestore');
           userRole = existingUser.rol;
+          print('✅ [AUTH] Rol existente: ${userRole.value}');
         }
 
-        // *** LIMPIEZA AUTOMÁTICA DE DATOS ANTIGUOS (Cost Prevention) ***
+        // *** FORZAR REFRESH DEL TOKEN DE FIREBASE ***
+        // Esto asegura que Firestore tenga el token más reciente
+        // y evita errores de permisos en usuarios nuevos
+        try {
+          await firebaseUser.getIdToken(true);
+          print('🔐 [AUTH] Token de Firebase actualizado exitosamente');
+        } catch (e) {
+          print('⚠️ [AUTH] Error actualizando token: $e');
+        }
+
+        // *** ESTABLECER CACHÉ DE ROL INMEDIATAMENTE ***
+        // Esto permite navegación instantánea sin loader
+        _ref.read(cachedUserRoleProvider.notifier).state = userRole;
+        print('🔐 [AUTH] Rol cacheado inmediatamente: ${userRole.value}');
+
+        // Si el usuario ya existe, cachear también el modelo
+        if (existingUser != null) {
+          _ref.read(cachedUserModelProvider.notifier).state = existingUser;
+          print('🔐 [AUTH] Modelo de usuario cacheado');
+        }
+
+        // *** INVALIDAR PROVIDERS PARA FORZAR RECARGA LIMPIA ***
+        // Esto asegura que todos los streams se reconecten con el token actualizado
+        _ref.invalidate(userModelProvider);
+        _ref.invalidate(userRoleProvider);
+        _ref.invalidate(routinesProvider);
+        _ref.invalidate(machinesProvider);
+        _ref.invalidate(activeProductsProvider);
+        print('🔐 [AUTH] Providers invalidados para recarga limpia');
+
+        // *** LIMPIEZA AUTOMÁTICA DE DATOS ANTIGUOS ***
         // Solo ejecutar para entrenadores/admins que tienen permisos de escritura
-        if (userRole == UserRole.entrenador || userRole == UserRole.admin) {
+        if (userRole.hasTrainerPermissions) {
           firebaseService.cleanupOldData().catchError((error) {
-            // Silenciar errores de limpieza - no afecta el flujo del usuario
+            print('⚠️ [AUTH] Error en limpieza automática: $error');
           });
         }
       }
@@ -105,11 +178,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false);
       return result != null;
     } on AuthException catch (e) {
-      print('❌ [DEBUG] Error de autenticación: ${e.message}');
+      print('❌ [AUTH] Error de autenticación: ${e.message}');
       state = state.copyWith(isLoading: false, error: e.message);
       return false;
     } catch (e) {
-      print('❌ [DEBUG] Error inesperado en signInWithGoogle: $e');
+      print('❌ [AUTH] Error inesperado en signInWithGoogle: $e');
       state = state.copyWith(isLoading: false, error: 'Error al iniciar sesión');
       return false;
     }
@@ -117,6 +190,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
+
+    // IMPORTANTE: Resetear el activeUserIdProvider antes de cerrar sesión
+    // Esto limpia el estado del "modo prueba" y previene problemas con el siguiente usuario
+    _ref.read(activeUserIdProvider.notifier).state = null;
+    print('🔐 [AUTH] activeUserIdProvider reseteado a null (signOut)');
+
+    // *** LIMPIAR CACHÉ DE ROL Y MODELO ***
+    // Esto asegura que el próximo usuario no vea datos del usuario anterior
+    _ref.read(cachedUserRoleProvider.notifier).state = null;
+    _ref.read(cachedUserModelProvider.notifier).state = null;
+    print('🔐 [AUTH] Caché de rol y modelo limpiado');
+
+    // *** INVALIDAR TODOS LOS PROVIDERS DE DATOS ***
+    // Esto asegura que el próximo usuario comience con estado limpio
+    _ref.invalidate(userModelProvider);
+    _ref.invalidate(userRoleProvider);
+    _ref.invalidate(routinesProvider);
+    _ref.invalidate(machinesProvider);
+    _ref.invalidate(activeProductsProvider);
+    _ref.invalidate(clientsProvider);
+    _ref.invalidate(currentUserWeeklyRoutineProvider);
+    _ref.invalidate(currentUserHistoryProvider);
+    _ref.invalidate(currentUserAnnouncementsProvider);
+    print('🔐 [AUTH] Providers invalidados para limpiar estado');
+
     await _authService.signOut();
     state = state.copyWith(isLoading: false);
   }

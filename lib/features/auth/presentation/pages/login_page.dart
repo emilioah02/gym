@@ -357,7 +357,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                       ),
                     ),
                     InkWell(
-                      onTap: () => context.push(AppRoutes.termsConditions),
+                      onTap: () => context.go('${AppRoutes.terms}?from=login'),
                       child: Text(
                         'Términos',
                         style: AppTypography.bodySmall.copyWith(
@@ -375,7 +375,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                       ),
                     ),
                     InkWell(
-                      onTap: () => context.push(AppRoutes.privacyPolicy),
+                      onTap: () => context.go('${AppRoutes.privacy}?from=login'),
                       child: Text(
                         'Privacidad',
                         style: AppTypography.bodySmall.copyWith(

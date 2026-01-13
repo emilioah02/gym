@@ -53,8 +53,8 @@ class TrainerHelpNotificationsPage extends ConsumerWidget {
                   ),
                   error: (error, stack) => SliverFillRemaining(
                     child: Center(
-                      child: SelectableText.rich(
-                        'Error: $error' as TextSpan,
+                      child: Text(
+                        'Error: $error',
                         style: const TextStyle(color: AppColors.error),
                       ),
                     ),
@@ -418,8 +418,8 @@ class _NotificationCard extends ConsumerWidget {
         ),
       );
     } else if (tipo == 'nuevo_pedido') {
-      // Navegar a la página de pedidos
-      context.go('/trainer/requests');
+      // Navegar al tab de pedidos en el centro de notificaciones
+      context.go('/trainer/notifications?tab=1');
     } else {
       // Para solicitudes de ayuda, ver perfil del cliente
       if (clienteId != null) {

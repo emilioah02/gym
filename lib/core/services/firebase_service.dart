@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import '../models/models.dart';
 
 class FirebaseService {
@@ -37,6 +38,9 @@ class FirebaseService {
 
   CollectionReference<Map<String, dynamic>> get _clientNotificationStatusCollection =>
       _firestore.collection('client_notification_status');
+
+  CollectionReference<Map<String, dynamic>> get _exercisesCollection =>
+      _firestore.collection('exercises');
 
   // ============ USERS ============
 
@@ -78,27 +82,22 @@ class FirebaseService {
     try {
       final doc = await _usersCollection.doc(uid).get();
       if (!doc.exists) {
-        print('⚠️ [getUserRole] Usuario no existe en Firestore: $uid');
         return UserRole.cliente; // Default role
       }
 
       final data = doc.data();
       if (data == null) {
-        print('⚠️ [getUserRole] Documento sin datos: $uid');
         return UserRole.cliente;
       }
 
       final rolString = data['rol'] as String?;
       if (rolString == null) {
-        print('⚠️ [getUserRole] Campo rol no encontrado para: $uid');
         return UserRole.cliente;
       }
 
-      final role = UserRole.fromString(rolString);
-      print('✅ [getUserRole] Rol obtenido para $uid: ${role.value}');
-      return role;
+      return UserRole.fromString(rolString);
     } catch (e) {
-      print('❌ [getUserRole] Error obteniendo rol: $e');
+      if (kDebugMode) debugPrint('Error obteniendo rol: $e');
       return UserRole.cliente; // Default role en caso de error
     }
   }
@@ -189,12 +188,61 @@ class FirebaseService {
     await batch.commit();
   }
 
+  // ============ EXERCISES ============
+
+  /// Obtener todos los ejercicios
+  Stream<List<ExerciseModel>> getAllExercises() {
+    return _exercisesCollection.orderBy('nombre').snapshots().map((snapshot) =>
+        snapshot.docs.map((doc) => ExerciseModel.fromFirestore(doc)).toList());
+  }
+
+  /// Obtener ejercicios por categoría
+  Stream<List<ExerciseModel>> getExercisesByCategory(MachineCategory category) {
+    return _exercisesCollection
+        .where('categoria', isEqualTo: category.value)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ExerciseModel.fromFirestore(doc))
+            .toList());
+  }
+
+  /// Obtener ejercicio por ID
+  Future<ExerciseModel?> getExerciseById(String id) async {
+    final doc = await _exercisesCollection.doc(id).get();
+    if (!doc.exists) return null;
+    return ExerciseModel.fromFirestore(doc);
+  }
+
+  /// Guardar ejercicio
+  Future<void> saveExercise(ExerciseModel exercise) async {
+    await _exercisesCollection.doc(exercise.id).set(exercise.toFirestore());
+  }
+
+  /// Actualizar ejercicio
+  Future<void> updateExercise(String id, ExerciseModel exercise) async {
+    await _exercisesCollection.doc(id).set(
+      exercise.toFirestore(),
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Eliminar ejercicio
+  Future<void> deleteExercise(String id) async {
+    await _exercisesCollection.doc(id).delete();
+  }
+
   // ============ ROUTINES ============
 
   /// Obtener todas las rutinas
   Stream<List<RoutineModel>> getAllRoutines() {
     return _routinesCollection.snapshots().map((snapshot) =>
         snapshot.docs.map((doc) => RoutineModel.fromFirestore(doc)).toList());
+  }
+
+  /// Obtener todas las rutinas una sola vez (para migración)
+  Future<List<RoutineModel>> getAllRoutinesOnce() async {
+    final snapshot = await _routinesCollection.get();
+    return snapshot.docs.map((doc) => RoutineModel.fromFirestore(doc)).toList();
   }
 
   /// Obtener rutinas ordenadas por dificultad
@@ -348,6 +396,22 @@ class FirebaseService {
           .doc(weeklyRoutine.id)
           .set(weeklyRoutine.toFirestore());
     }
+
+    // Actualizar el campo rutinaAsignadaId del cliente
+    final firstRoutineId = weeklyRoutine.lunes ??
+        weeklyRoutine.martes ??
+        weeklyRoutine.miercoles ??
+        weeklyRoutine.jueves ??
+        weeklyRoutine.viernes ??
+        weeklyRoutine.sabado ??
+        weeklyRoutine.domingo;
+
+    if (firstRoutineId != null && weeklyRoutine.clienteId.isNotEmpty) {
+      await _usersCollection.doc(weeklyRoutine.clienteId).update({
+        'rutinaAsignadaId': firstRoutineId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   /// Asignar rutina a un día específico
@@ -379,6 +443,12 @@ class FirebaseService {
         'expiresAt': Timestamp.fromDate(expiresAt),
       });
     }
+
+    // Actualizar el campo rutinaAsignadaId del cliente
+    await _usersCollection.doc(clienteId).update({
+      'rutinaAsignadaId': rutinaId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   /// Set weekly routine (can set multiple days at once)
@@ -404,6 +474,24 @@ class FirebaseService {
       routineData['weekStartDate'] = Timestamp.fromDate(weekStartDate);
       routineData['expiresAt'] = Timestamp.fromDate(expiresAt);
       await _weeklyRoutinesCollection.add(routineData);
+    }
+
+    // Actualizar el campo rutinaAsignadaId del cliente
+    // Buscar la primera rutina asignada en los datos
+    final days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    String? firstRoutineId;
+    for (final day in days) {
+      if (routineData[day] != null && routineData[day].toString().isNotEmpty) {
+        firstRoutineId = routineData[day].toString();
+        break;
+      }
+    }
+
+    if (firstRoutineId != null) {
+      await _usersCollection.doc(clienteId).update({
+        'rutinaAsignadaId': firstRoutineId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     }
   }
 
@@ -476,7 +564,13 @@ class FirebaseService {
     });
   }
 
-  /// Actualizar racha de entrenamiento del usuario
+  /// Actualiza la racha de días de entrenamiento del usuario.
+  ///
+  /// Lógica de racha:
+  /// - Cuenta días de entrenamiento (no días consecutivos del calendario)
+  /// - Permite hasta 2 días de descanso sin resetear la racha
+  /// - Si pasan más de 2 días sin entrenar, la racha se resetea a 1
+  /// - Si entrena el mismo día, no incrementa (ya contó ese día)
   Future<void> updateStreak(String userId) async {
     final user = await getUser(userId);
     if (user == null) return;
@@ -491,6 +585,7 @@ class FirebaseService {
         'fechaUltimoEntrenamiento': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      print('🔥 [STREAK] Usuario $userId - Primera racha iniciada: 1');
       return;
     }
 
@@ -504,14 +599,18 @@ class FirebaseService {
 
     int newStreak;
     if (daysDifference == 0) {
-      // Mismo día - no incrementar racha
+      // Mismo día - no incrementar racha (ya entrenó hoy)
       newStreak = user.rachasDias;
-    } else if (daysDifference == 1) {
-      // Día consecutivo - incrementar racha
+      print('🔥 [STREAK] Usuario $userId - Mismo día, racha se mantiene: $newStreak');
+    } else if (daysDifference <= 2) {
+      // Hasta 2 días de diferencia - incrementar racha (permite días de descanso)
+      // Esto permite: entrenar Lunes, descansar Martes, entrenar Miércoles
       newStreak = user.rachasDias + 1;
+      print('🔥 [STREAK] Usuario $userId - Nuevo día de entrenamiento (diferencia: $daysDifference días), racha incrementada: $newStreak');
     } else {
-      // Más de 24 horas - resetear racha a 1
+      // Más de 2 días sin entrenar - resetear racha a 1
       newStreak = 1;
+      print('🔥 [STREAK] Usuario $userId - Más de 2 días sin entrenar ($daysDifference días), racha reseteada: $newStreak');
     }
 
     await _usersCollection.doc(userId).update({
@@ -519,6 +618,88 @@ class FirebaseService {
       'fechaUltimoEntrenamiento': Timestamp.fromDate(now),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Eliminar una entrada del historial
+  Future<void> deleteTrainingHistory(String historyId) async {
+    await _historyCollection.doc(historyId).delete();
+  }
+
+  /// Recalcula la racha de un usuario basándose en su historial de entrenamientos.
+  ///
+  /// Útil para corregir rachas que no se calcularon correctamente.
+  /// Cuenta días únicos de entrenamiento, permitiendo hasta 2 días de descanso entre sesiones.
+  Future<int> recalculateStreak(String userId) async {
+    // Obtener historial ordenado por fecha descendente
+    final snapshot = await _historyCollection
+        .where('clienteId', isEqualTo: userId)
+        .orderBy('fecha', descending: true)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      await _usersCollection.doc(userId).update({
+        'rachasDias': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('🔥 [STREAK RECALC] Usuario $userId - Sin historial, racha: 0');
+      return 0;
+    }
+
+    // Extraer fechas únicas de entrenamiento (sin hora)
+    final Set<DateTime> uniqueDays = {};
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final fecha = (data['fecha'] as Timestamp).toDate();
+      uniqueDays.add(DateTime(fecha.year, fecha.month, fecha.day));
+    }
+
+    // Ordenar fechas de más reciente a más antigua
+    final sortedDays = uniqueDays.toList()..sort((a, b) => b.compareTo(a));
+
+    // Calcular racha: contar días consecutivos permitiendo hasta 2 días de descanso
+    int streak = 0;
+    DateTime? previousDay;
+
+    for (final day in sortedDays) {
+      if (previousDay == null) {
+        // Primer día (más reciente)
+        streak = 1;
+        previousDay = day;
+      } else {
+        final daysDifference = previousDay.difference(day).inDays;
+        if (daysDifference <= 2) {
+          // Día válido (hasta 2 días de diferencia permitidos)
+          streak++;
+          previousDay = day;
+        } else {
+          // Más de 2 días de diferencia, la racha se rompe aquí
+          break;
+        }
+      }
+    }
+
+    // Verificar que el último entrenamiento no sea muy antiguo
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastWorkoutDay = sortedDays.first;
+    final daysSinceLastWorkout = today.difference(lastWorkoutDay).inDays;
+
+    if (daysSinceLastWorkout > 2) {
+      // Más de 2 días sin entrenar desde el último - resetear racha
+      streak = 0;
+      print('🔥 [STREAK RECALC] Usuario $userId - Más de 2 días sin entrenar ($daysSinceLastWorkout días), racha reseteada: 0');
+    } else {
+      print('🔥 [STREAK RECALC] Usuario $userId - Racha calculada: $streak (${uniqueDays.length} días únicos de entrenamiento)');
+    }
+
+    // Actualizar en Firebase
+    await _usersCollection.doc(userId).update({
+      'rachasDias': streak,
+      'fechaUltimoEntrenamiento': Timestamp.fromDate(sortedDays.first),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    return streak;
   }
 
   /// Obtener progreso de peso del cliente
@@ -692,7 +873,6 @@ class FirebaseService {
       }
     } catch (e) {
       // Si falla el push, al menos la notificación en Firestore se guardó
-      print('⚠️ No se pudo enviar notificación push: $e');
     }
   }
 
@@ -819,7 +999,7 @@ class FirebaseService {
         }
       }
     } catch (e) {
-      print('❌ Error marcando notificación como leída $notificationId: $e');
+      if (kDebugMode) debugPrint('Error marcando notificación como leída: $e');
     }
   }
 
@@ -832,7 +1012,6 @@ class FirebaseService {
       if (notificationDoc.exists) {
         // Si existe en notifications, eliminarlo de ahí
         await _notificationsCollection.doc(notificationId).delete();
-        print('✅ Notificación eliminada de notifications: $notificationId');
       } else {
         // Si no existe en notifications, verificar si es una solicitud de rutina
         final routineDoc = await _routineRequestsCollection.doc(notificationId).get();
@@ -843,13 +1022,10 @@ class FirebaseService {
             'estado': 'rechazada',
             'fechaRechazo': FieldValue.serverTimestamp(),
           });
-          print('✅ Solicitud de rutina rechazada: $notificationId');
-        } else {
-          print('⚠️ Notificación no encontrada: $notificationId');
         }
       }
     } catch (e) {
-      print('❌ Error eliminando notificación $notificationId: $e');
+      if (kDebugMode) debugPrint('Error eliminando notificación: $e');
       rethrow;
     }
   }
@@ -861,6 +1037,31 @@ class FirebaseService {
         .where('leido', isEqualTo: false)
         .snapshots()
         .map((snapshot) => snapshot.docs.length);
+  }
+
+  /// Marcar todas las notificaciones como leídas para un entrenador
+  /// Usa batch write para eficiencia (máx 500 operaciones por batch)
+  Future<void> markAllNotificationsAsRead(String trainerId) async {
+    try {
+      final snapshot = await _notificationsCollection
+          .where('entrenadorId', isEqualTo: trainerId)
+          .where('leido', isEqualTo: false)
+          .limit(500) // Límite de batch
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {
+          'leido': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error marcando notificaciones como leídas: $e');
+    }
   }
 
   // ============ MIGRATION ============
@@ -882,17 +1083,12 @@ class FirebaseService {
   /// Esta función debe ser llamada automáticamente en el login del usuario
   Future<void> cleanupOldData() async {
     try {
-      print('🧹 [CLEANUP] Iniciando limpieza de datos antiguos...');
-
       // 1. Limpiar historial de entrenamientos > 365 días
       await _cleanupOldTrainingHistory();
 
       // 2. Limpiar rutinas semanales expiradas > 30 días
       await _cleanupExpiredWeeklyRoutines();
-
-      print('✅ [CLEANUP] Limpieza completada exitosamente');
     } catch (e) {
-      print('❌ [CLEANUP] Error durante la limpieza: $e');
       // No lanzamos error para no interrumpir el flujo del login
     }
   }
@@ -900,66 +1096,46 @@ class FirebaseService {
   /// Eliminar historial de entrenamientos con más de 1 año de antigüedad
   Future<void> _cleanupOldTrainingHistory() async {
     try {
-      // Calcular fecha límite (hace 365 días)
       final cutoffDate = DateTime.now().subtract(const Duration(days: 365));
       final cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
-      print('🧹 [CLEANUP] Buscando entrenamientos antes de: ${cutoffDate.toString()}');
-
-      // Buscar documentos antiguos (limitamos a 100 por lote para evitar problemas)
       final oldDocs = await _historyCollection
           .where('fecha', isLessThan: cutoffTimestamp)
           .limit(100)
           .get();
 
-      if (oldDocs.docs.isEmpty) {
-        print('✅ [CLEANUP] No hay entrenamientos antiguos para eliminar');
-        return;
-      }
+      if (oldDocs.docs.isEmpty) return;
 
-      // Eliminar en batch para eficiencia
       final batch = _firestore.batch();
       for (final doc in oldDocs.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();
-
-      print('✅ [CLEANUP] Eliminados ${oldDocs.docs.length} entrenamientos antiguos');
     } catch (e) {
-      print('❌ [CLEANUP] Error al limpiar historial: $e');
+      // Silently fail - cleanup is not critical
     }
   }
 
   /// Eliminar rutinas semanales expiradas con más de 30 días
   Future<void> _cleanupExpiredWeeklyRoutines() async {
     try {
-      // Calcular fecha límite (hace 30 días desde su expiración)
       final cutoffDate = DateTime.now().subtract(const Duration(days: 30));
       final cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
-      print('🧹 [CLEANUP] Buscando rutinas semanales expiradas antes de: ${cutoffDate.toString()}');
-
-      // Buscar rutinas expiradas (limitamos a 100 por lote)
       final expiredDocs = await _weeklyRoutinesCollection
           .where('expiresAt', isLessThan: cutoffTimestamp)
           .limit(100)
           .get();
 
-      if (expiredDocs.docs.isEmpty) {
-        print('✅ [CLEANUP] No hay rutinas semanales expiradas para eliminar');
-        return;
-      }
+      if (expiredDocs.docs.isEmpty) return;
 
-      // Eliminar en batch
       final batch = _firestore.batch();
       for (final doc in expiredDocs.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();
-
-      print('✅ [CLEANUP] Eliminadas ${expiredDocs.docs.length} rutinas semanales expiradas');
     } catch (e) {
-      print('❌ [CLEANUP] Error al limpiar rutinas semanales: $e');
+      // Silently fail - cleanup is not critical
     }
   }
 
@@ -994,10 +1170,8 @@ class FirebaseService {
         'weekStartDate': Timestamp.fromDate(weekStartDate),
         'expiresAt': Timestamp.fromDate(expiresAt),
       });
-
-      print('✅ [CLEANUP] Campos de expiración agregados a rutina semanal: $weeklyRoutineId');
     } catch (e) {
-      print('❌ [CLEANUP] Error al agregar campos de expiración: $e');
+      // Silently fail
     }
   }
 
@@ -1006,7 +1180,67 @@ class FirebaseService {
   /// Crear solicitud de rutina
   Future<String> createRoutineRequest(RoutineRequestModel request) async {
     final docRef = await _routineRequestsCollection.add(request.toFirestore());
-    return docRef.id;
+    final requestId = docRef.id;
+
+    // Crear notificación para todos los entrenadores
+    try {
+      await _notifyTrainersAboutNewRoutineRequest(requestId, request);
+    } catch (e) {
+      // Si falla la notificación, la solicitud ya se guardó
+      if (kDebugMode) debugPrint('Error creando notificación de solicitud: $e');
+    }
+
+    return requestId;
+  }
+
+  /// Notificar a todos los entrenadores sobre una nueva solicitud de rutina
+  Future<void> _notifyTrainersAboutNewRoutineRequest(
+    String requestId,
+    RoutineRequestModel request,
+  ) async {
+    // Obtener todos los usuarios con rol entrenador o admin
+    final trainersQuery = await _usersCollection
+        .where('rol', whereIn: ['entrenador', 'admin'])
+        .get();
+
+    // Crear una notificación para cada entrenador
+    final batch = _firestore.batch();
+    for (final trainerDoc in trainersQuery.docs) {
+      final notificationRef = _notificationsCollection.doc();
+      batch.set(notificationRef, {
+        'tipo': 'solicitud_rutina',
+        'requestId': requestId,
+        'entrenadorId': trainerDoc.id,
+        'clienteId': request.clienteId,
+        'clienteNombre': request.clienteNombre,
+        'parteDelCuerpo': request.parteDelCuerpo.name,
+        'leido': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // También enviar push notification si tiene token FCM
+      final data = trainerDoc.data();
+      final fcmToken = data['fcmToken'] as String?;
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        final pushRef = _firestore.collection('push_notifications').doc();
+        batch.set(pushRef, {
+          'to': fcmToken,
+          'notification': {
+            'title': '💪 Nueva Solicitud de Entrenamiento',
+            'body': '${request.clienteNombre} solicita rutina de ${request.parteDelCuerpo.displayName}',
+          },
+          'data': {
+            'tipo': 'solicitud_rutina',
+            'requestId': requestId,
+            'clienteId': request.clienteId,
+          },
+          'priority': 'high',
+          'createdAt': FieldValue.serverTimestamp(),
+          'processed': false,
+        });
+      }
+    }
+    await batch.commit();
   }
 
   /// Stream de todas las solicitudes pendientes (para el coach)
@@ -1068,7 +1302,6 @@ class FirebaseService {
       await _notifyTrainersAboutNewOrder(orderId, order);
     } catch (e) {
       // Si falla la notificación, el pedido ya se guardó
-      print('⚠️ No se pudo notificar a entrenadores: $e');
     }
 
     return orderId;
@@ -1076,29 +1309,33 @@ class FirebaseService {
 
   /// Notificar a todos los entrenadores sobre un nuevo pedido
   Future<void> _notifyTrainersAboutNewOrder(String orderId, StoreOrderModel order) async {
-    // Obtener todos los usuarios con rol entrenador o admin que tengan fcmToken
+    // Obtener todos los usuarios con rol entrenador o admin
     final trainersQuery = await _usersCollection
         .where('rol', whereIn: ['entrenador', 'admin'])
         .get();
 
-    // Crear notificación en la colección de notificaciones
-    await _notificationsCollection.add({
-      'tipo': 'nuevo_pedido',
-      'orderId': orderId,
-      'clienteId': order.clienteId,
-      'clienteNombre': order.clienteNombre,
-      'total': order.total,
-      'itemsCount': order.items.length,
-      'leido': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    // Enviar push notification a cada entrenador
+    // Crear una notificación para cada entrenador (con su entrenadorId)
+    final batch = _firestore.batch();
     for (final trainerDoc in trainersQuery.docs) {
+      final notificationRef = _notificationsCollection.doc();
+      batch.set(notificationRef, {
+        'tipo': 'nuevo_pedido',
+        'orderId': orderId,
+        'entrenadorId': trainerDoc.id,
+        'clienteId': order.clienteId,
+        'clienteNombre': order.clienteNombre,
+        'total': order.total,
+        'itemsCount': order.items.length,
+        'leido': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // También enviar push notification si tiene token FCM
       final data = trainerDoc.data();
       final fcmToken = data['fcmToken'] as String?;
       if (fcmToken != null && fcmToken.isNotEmpty) {
-        await _firestore.collection('push_notifications').add({
+        final pushRef = _firestore.collection('push_notifications').doc();
+        batch.set(pushRef, {
           'to': fcmToken,
           'notification': {
             'title': '🛒 Nuevo Pedido',
@@ -1117,27 +1354,52 @@ class FirebaseService {
         });
       }
     }
+    await batch.commit();
   }
 
   /// Stream de todos los pedidos (para el coach)
+  /// También ejecuta limpieza de pedidos antiguos en segundo plano
   Stream<List<StoreOrderModel>> storeOrdersStream() {
+    // Ejecutar limpieza de pedidos antiguos en segundo plano
+    _cleanupDeliveredOrders();
+
     return _storeOrdersCollection
         .orderBy('fechaPedido', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StoreOrderModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final List<StoreOrderModel> orders = [];
+          for (final doc in snapshot.docs) {
+            try {
+              orders.add(StoreOrderModel.fromFirestore(doc));
+            } catch (e) {
+              // Skip malformed documents
+            }
+          }
+          return orders;
+        });
   }
 
   /// Stream de pedidos de un cliente específico
+  /// También ejecuta limpieza de pedidos antiguos en segundo plano
   Stream<List<StoreOrderModel>> clientStoreOrdersStream(String clienteId) {
+    // Ejecutar limpieza de pedidos antiguos en segundo plano
+    _cleanupDeliveredOrders();
+
     return _storeOrdersCollection
         .where('clienteId', isEqualTo: clienteId)
         .orderBy('fechaPedido', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StoreOrderModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final List<StoreOrderModel> orders = [];
+          for (final doc in snapshot.docs) {
+            try {
+              orders.add(StoreOrderModel.fromFirestore(doc));
+            } catch (e) {
+              // Skip malformed documents
+            }
+          }
+          return orders;
+        });
   }
 
   /// Stream de pedidos pendientes (sin entregar)
@@ -1147,9 +1409,17 @@ class FirebaseService {
             whereIn: [OrderStatus.pendiente.name, OrderStatus.listo.name])
         .orderBy('fechaPedido', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StoreOrderModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final List<StoreOrderModel> orders = [];
+          for (final doc in snapshot.docs) {
+            try {
+              orders.add(StoreOrderModel.fromFirestore(doc));
+            } catch (e) {
+              // Skip malformed documents
+            }
+          }
+          return orders;
+        });
   }
 
   /// Actualizar estado del pedido
@@ -1177,39 +1447,34 @@ class FirebaseService {
     await updateOrderStatus(orderId, OrderStatus.entregado);
   }
 
+  /// Eliminar un pedido de tienda
+  Future<void> deleteStoreOrder(String orderId) async {
+    await _storeOrdersCollection.doc(orderId).delete();
+  }
+
   // ============ CLEANUP: STORE ORDERS ============
 
-  /// Eliminar pedidos entregados con más de 7 días
+  /// Eliminar pedidos entregados con más de 24 horas
   Future<void> _cleanupDeliveredOrders() async {
     try {
-      // Calcular fecha límite (hace 7 días)
-      final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
+      final cutoffDate = DateTime.now().subtract(const Duration(hours: 24));
       final cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
-      print('🧹 [CLEANUP] Buscando pedidos entregados antes de: ${cutoffDate.toString()}');
-
-      // Buscar pedidos entregados antiguos (limitamos a 100 por lote)
       final deliveredDocs = await _storeOrdersCollection
           .where('estado', isEqualTo: OrderStatus.entregado.name)
           .where('fechaEntregado', isLessThan: cutoffTimestamp)
           .limit(100)
           .get();
 
-      if (deliveredDocs.docs.isEmpty) {
-        print('✅ [CLEANUP] No hay pedidos entregados antiguos para eliminar');
-        return;
-      }
+      if (deliveredDocs.docs.isEmpty) return;
 
-      // Eliminar en batch
       final batch = _firestore.batch();
       for (final doc in deliveredDocs.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();
-
-      print('✅ [CLEANUP] Eliminados ${deliveredDocs.docs.length} pedidos entregados antiguos');
     } catch (e) {
-      print('❌ [CLEANUP] Error al limpiar pedidos entregados: $e');
+      // Silently fail - cleanup is not critical
     }
   }
 
@@ -1218,34 +1483,24 @@ class FirebaseService {
   /// Eliminar solicitudes de rutina completadas con más de 30 días
   Future<void> _cleanupCompletedRoutineRequests() async {
     try {
-      // Calcular fecha límite (hace 30 días)
       final cutoffDate = DateTime.now().subtract(const Duration(days: 30));
       final cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
-      print('🧹 [CLEANUP] Buscando solicitudes completadas antes de: ${cutoffDate.toString()}');
-
-      // Buscar solicitudes completadas antiguas (limitamos a 100 por lote)
       final completedDocs = await _routineRequestsCollection
           .where('estado', isEqualTo: RequestStatus.asignada.name)
           .where('fechaRespuesta', isLessThan: cutoffTimestamp)
           .limit(100)
           .get();
 
-      if (completedDocs.docs.isEmpty) {
-        print('✅ [CLEANUP] No hay solicitudes completadas antiguas para eliminar');
-        return;
-      }
+      if (completedDocs.docs.isEmpty) return;
 
-      // Eliminar en batch
       final batch = _firestore.batch();
       for (final doc in completedDocs.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();
-
-      print('✅ [CLEANUP] Eliminadas ${completedDocs.docs.length} solicitudes completadas antiguas');
     } catch (e) {
-      print('❌ [CLEANUP] Error al limpiar solicitudes de rutina: $e');
+      // Silently fail - cleanup is not critical
     }
   }
 
@@ -1253,15 +1508,11 @@ class FirebaseService {
 
   /// Ejecutar todas las tareas de limpieza
   Future<void> runCleanupTasks() async {
-    print('🧹 [CLEANUP] Iniciando limpieza de datos...');
-
     await Future.wait([
       _cleanupExpiredWeeklyRoutines(),
       _cleanupDeliveredOrders(),
       _cleanupCompletedRoutineRequests(),
     ]);
-
-    print('✅ [CLEANUP] Limpieza completada');
   }
 
   // ============ PRODUCTS ============
@@ -1334,7 +1585,6 @@ class FirebaseService {
     );
 
     await docRef.set(newProduct.toFirestore());
-    print('✅ [PRODUCTS] Producto creado: ${newProduct.name} (${docRef.id})');
     return docRef.id;
   }
 
@@ -1349,13 +1599,11 @@ class FirebaseService {
           updatedProduct.toFirestore(),
           SetOptions(merge: true),
         );
-    print('✅ [PRODUCTS] Producto actualizado: ${product.name}');
   }
 
   /// Eliminar producto
   Future<void> deleteProduct(String productId) async {
     await _productsCollection.doc(productId).delete();
-    print('✅ [PRODUCTS] Producto eliminado: $productId');
   }
 
   /// Activar/Desactivar producto
@@ -1364,7 +1612,6 @@ class FirebaseService {
       'isActive': isActive,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
     });
-    print('✅ [PRODUCTS] Producto ${isActive ? "activado" : "desactivado"}: $productId');
   }
 
   /// Actualizar stock del producto
@@ -1373,7 +1620,6 @@ class FirebaseService {
       'stock': newStock,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
     });
-    print('✅ [PRODUCTS] Stock actualizado para producto $productId: $newStock');
   }
 
   /// Migrar productos existentes para agregar campos faltantes
@@ -1425,15 +1671,12 @@ class FirebaseService {
             skipped++;
           }
         } catch (e) {
-          print('❌ [MIGRATION] Error en producto ${doc.id}: $e');
           errors++;
         }
       }
 
-      print('✅ [MIGRATION] Migración completada: $updated actualizados, $skipped sin cambios, $errors errores');
       return {'updated': updated, 'skipped': skipped, 'errors': errors};
     } catch (e) {
-      print('❌ [MIGRATION] Error fatal: $e');
       rethrow;
     }
   }
@@ -1601,15 +1844,12 @@ class FirebaseService {
           await createProduct(product);
           created++;
         } catch (e) {
-          print('❌ [SEED] Error al crear ${product.name}: $e');
           errors++;
         }
       }
 
-      print('✅ [SEED] Productos creados: $created, errores: $errors');
       return {'created': created, 'errors': errors};
     } catch (e) {
-      print('❌ [SEED] Error fatal: $e');
       rethrow;
     }
   }
@@ -1618,8 +1858,17 @@ class FirebaseService {
 
   /// Crear anuncio personalizado
   Future<String> createAnnouncement(AnnouncementModel announcement) async {
+    if (kDebugMode) {
+      debugPrint('📢 [CreateAnnouncement] Título: ${announcement.titulo}');
+      debugPrint('📢 [CreateAnnouncement] ClientesIds: ${announcement.clientesIds}');
+      debugPrint('📢 [CreateAnnouncement] Activo: ${announcement.activo}');
+    }
+
     final docRef = await _announcementsCollection.add(announcement.toMap());
-    print('✅ [ANNOUNCEMENTS] Anuncio creado: ${announcement.titulo} (${docRef.id})');
+
+    if (kDebugMode) {
+      debugPrint('📢 [CreateAnnouncement] Creado con ID: ${docRef.id}');
+    }
 
     // Enviar notificación push a los clientes destinatarios
     await _sendAnnouncementPushNotifications(docRef.id, announcement);
@@ -1667,9 +1916,8 @@ class FirebaseService {
         }
       }
 
-      print('✅ [ANNOUNCEMENTS] Notificaciones push enviadas a ${targetClientIds.length} clientes');
     } catch (e) {
-      print('❌ [ANNOUNCEMENTS] Error enviando notificaciones push: $e');
+      // Silently fail - push notifications are not critical
     }
   }
 
@@ -1688,26 +1936,67 @@ class FirebaseService {
 
   /// Obtener anuncios para un cliente específico
   Stream<List<AnnouncementModel>> getClientAnnouncementsStream(String clientId) {
+    if (kDebugMode) {
+      debugPrint('📢 [Announcements] Iniciando stream para cliente: $clientId');
+    }
+
     return _announcementsCollection
         .where('activo', isEqualTo: true)
         .orderBy('fechaCreacion', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
-      final announcements = snapshot.docs
+      if (kDebugMode) {
+        debugPrint('📢 [Announcements] Documentos recibidos: ${snapshot.docs.length}');
+      }
+
+      final allAnnouncements = snapshot.docs
           .map((doc) => AnnouncementModel.fromFirestore(doc))
+          .toList();
+
+      if (kDebugMode) {
+        for (final ann in allAnnouncements) {
+          debugPrint('📢 [Announcements] Anuncio: ${ann.titulo}, clientesIds: ${ann.clientesIds}, isForClient: ${ann.isForClient(clientId)}');
+        }
+      }
+
+      final announcements = allAnnouncements
           .where((announcement) => announcement.isForClient(clientId))
           .toList();
 
+      if (kDebugMode) {
+        debugPrint('📢 [Announcements] Anuncios filtrados para cliente: ${announcements.length}');
+      }
+
       // Filtrar anuncios que no han sido eliminados por el cliente
+      // Si hay error en la consulta de estado, incluimos el anuncio de todas formas
       final filteredAnnouncements = <AnnouncementModel>[];
       for (final announcement in announcements) {
-        final status = await _getClientNotificationStatus(clientId, announcement.id);
-        if (status == null || !status.eliminado) {
+        try {
+          final status = await _getClientNotificationStatus(clientId, announcement.id);
+          if (status == null || !status.eliminado) {
+            filteredAnnouncements.add(announcement);
+          }
+        } catch (e) {
+          // En caso de error, incluimos el anuncio para no bloquear el flujo
+          if (kDebugMode) {
+            debugPrint('⚠️ [Announcements] Error obteniendo estado para ${announcement.id}: $e');
+          }
           filteredAnnouncements.add(announcement);
         }
       }
 
+      if (kDebugMode) {
+        debugPrint('📢 [Announcements] Anuncios finales (no eliminados): ${filteredAnnouncements.length}');
+      }
+
       return filteredAnnouncements;
+    }).handleError((error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('❌ [Announcements] Error en stream: $error');
+        debugPrint('❌ [Announcements] Stack: $stackTrace');
+      }
+      // Retornamos lista vacía si hay error crítico en el stream
+      return <AnnouncementModel>[];
     });
   }
 
@@ -1716,14 +2005,22 @@ class FirebaseService {
     String clientId,
     String announcementId,
   ) async {
-    final query = await _clientNotificationStatusCollection
-        .where('clienteId', isEqualTo: clientId)
-        .where('anuncioId', isEqualTo: announcementId)
-        .limit(1)
-        .get();
+    try {
+      final query = await _clientNotificationStatusCollection
+          .where('clienteId', isEqualTo: clientId)
+          .where('anuncioId', isEqualTo: announcementId)
+          .limit(1)
+          .get();
 
-    if (query.docs.isEmpty) return null;
-    return ClientNotificationStatus.fromFirestore(query.docs.first);
+      if (query.docs.isEmpty) return null;
+      return ClientNotificationStatus.fromFirestore(query.docs.first);
+    } catch (e) {
+      // Si hay error (ej: índice no listo), asumimos que no ha sido eliminado
+      if (kDebugMode) {
+        debugPrint('⚠️ [NotificationStatus] Error consultando estado: $e');
+      }
+      return null;
+    }
   }
 
   /// Marcar anuncio como leído por cliente
@@ -1742,7 +2039,6 @@ class FirebaseService {
         'eliminado': false,
       });
     }
-    print('✅ [ANNOUNCEMENTS] Anuncio marcado como leído: $announcementId para cliente $clientId');
   }
 
   /// Eliminar (ocultar) anuncio para un cliente específico
@@ -1761,13 +2057,11 @@ class FirebaseService {
         'eliminado': true,
       });
     }
-    print('✅ [ANNOUNCEMENTS] Anuncio eliminado para cliente: $announcementId');
   }
 
   /// Actualizar anuncio
   Future<void> updateAnnouncement(String announcementId, AnnouncementModel announcement) async {
     await _announcementsCollection.doc(announcementId).update(announcement.toMap());
-    print('✅ [ANNOUNCEMENTS] Anuncio actualizado: ${announcement.titulo}');
   }
 
   /// Desactivar anuncio
@@ -1775,7 +2069,6 @@ class FirebaseService {
     await _announcementsCollection.doc(announcementId).update({
       'activo': false,
     });
-    print('✅ [ANNOUNCEMENTS] Anuncio desactivado: $announcementId');
   }
 
   /// Eliminar anuncio permanentemente
@@ -1792,8 +2085,6 @@ class FirebaseService {
       batch.delete(doc.reference);
     }
     await batch.commit();
-
-    print('✅ [ANNOUNCEMENTS] Anuncio eliminado: $announcementId');
   }
 
   /// Contar anuncios no leídos para un cliente
@@ -1808,5 +2099,257 @@ class FirebaseService {
       }
       return unreadCount;
     });
+  }
+
+  // ============ ASSIGNED ROUTINES (3 HOUR EXPIRATION) ============
+
+  CollectionReference<Map<String, dynamic>> get _assignedRoutinesCollection =>
+      _firestore.collection('assigned_routines');
+
+  /// Asignar rutina a un cliente (expira en 3 horas)
+  Future<String> assignRoutineToClient({
+    required String clienteId,
+    required String rutinaId,
+    required String rutinaNombre,
+    String? trainerId,
+  }) async {
+    print('📝 [ASSIGN] Asignando rutina a cliente:');
+    print('   - clienteId: $clienteId');
+    print('   - rutinaId: $rutinaId');
+    print('   - rutinaNombre: $rutinaNombre');
+    print('   - trainerId: $trainerId');
+
+    // Primero, marcar cualquier rutina activa anterior como expirada
+    await _expireClientActiveRoutines(clienteId);
+
+    // Crear nueva asignación
+    final assignment = AssignedRoutineModel.create(
+      clienteId: clienteId,
+      rutinaId: rutinaId,
+      rutinaNombre: rutinaNombre,
+      trainerId: trainerId,
+    );
+
+    print('📝 [ASSIGN] Guardando asignación en Firestore...');
+    final docRef = await _assignedRoutinesCollection.add(assignment.toFirestore());
+    print('✅ [ASSIGN] Asignación guardada con ID: ${docRef.id}');
+
+    // Actualizar el campo rutinaAsignadaId del cliente para que aparezca "Con rutina"
+    await _usersCollection.doc(clienteId).update({
+      'rutinaAsignadaId': rutinaId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    print('✅ [ASSIGN] Usuario actualizado con rutinaAsignadaId');
+
+    return docRef.id;
+  }
+
+  /// Expirar todas las rutinas activas de un cliente
+  Future<void> _expireClientActiveRoutines(String clienteId) async {
+    // Consulta simple solo por clienteId para evitar problemas de índices
+    final allRoutines = await _assignedRoutinesCollection
+        .where('clienteId', isEqualTo: clienteId)
+        .get();
+
+    if (allRoutines.docs.isEmpty) return;
+
+    // Filtrar las activas en memoria
+    final activeRoutineDocs = allRoutines.docs.where((doc) {
+      final data = doc.data();
+      return data['estado'] == 'activa';
+    }).toList();
+
+    if (activeRoutineDocs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in activeRoutineDocs) {
+      batch.update(doc.reference, {'estado': 'expirada'});
+    }
+    await batch.commit();
+  }
+
+  /// Obtener rutina activa del cliente (si existe y no ha expirado)
+  Future<AssignedRoutineModel?> getActiveAssignedRoutine(String clienteId) async {
+    // Consulta simple solo por clienteId para evitar problemas de índices
+    final query = await _assignedRoutinesCollection
+        .where('clienteId', isEqualTo: clienteId)
+        .get();
+
+    if (query.docs.isEmpty) return null;
+
+    // Filtrar y ordenar en memoria
+    final assignments = query.docs
+        .map((doc) => AssignedRoutineModel.fromFirestore(doc))
+        .where((a) => a.estado == AssignedRoutineStatus.activa)
+        .toList();
+
+    if (assignments.isEmpty) return null;
+
+    // Ordenar por fecha de asignación (más reciente primero)
+    assignments.sort((a, b) => b.fechaAsignacion.compareTo(a.fechaAsignacion));
+
+    final assignment = assignments.first;
+
+    // Verificar si ha expirado
+    if (assignment.isExpired) {
+      // Marcar como expirada en Firestore
+      await _assignedRoutinesCollection.doc(assignment.id).update({
+        'estado': 'expirada',
+      });
+      return null;
+    }
+
+    return assignment;
+  }
+
+  /// Stream de rutina activa del cliente
+  /// Consulta simplificada para mayor compatibilidad con índices
+  Stream<AssignedRoutineModel?> activeAssignedRoutineStream(String clienteId) {
+    print('🔍 [FIRESTORE] activeAssignedRoutineStream - clienteId: $clienteId');
+
+    // Usar consulta simple solo por clienteId para evitar problemas de índices compuestos
+    return _assignedRoutinesCollection
+        .where('clienteId', isEqualTo: clienteId)
+        .snapshots()
+        .handleError((error, stackTrace) {
+          print('❌ [FIRESTORE] Error en query assigned_routines: $error');
+          print('   Stack: $stackTrace');
+        })
+        .map((snapshot) {
+      print('🔍 [FIRESTORE] Snapshot recibido - docs count: ${snapshot.docs.length}');
+
+      if (snapshot.docs.isEmpty) {
+        print('⚠️ [FIRESTORE] No hay documentos para clienteId: $clienteId');
+        return null;
+      }
+
+      // Mostrar todos los documentos encontrados para debug
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        print('   📄 Doc ${doc.id}: clienteId=${data['clienteId']}, estado=${data['estado']}');
+      }
+
+      // Filtrar y ordenar en memoria para mayor robustez
+      final assignments = snapshot.docs
+          .map((doc) => AssignedRoutineModel.fromFirestore(doc))
+          .where((a) => a.estado == AssignedRoutineStatus.activa)
+          .toList();
+
+      print('🔍 [FIRESTORE] Asignaciones activas encontradas: ${assignments.length}');
+
+      if (assignments.isEmpty) {
+        print('⚠️ [FIRESTORE] No hay asignaciones activas');
+        return null;
+      }
+
+      // Ordenar por fecha de asignación (más reciente primero)
+      assignments.sort((a, b) => b.fechaAsignacion.compareTo(a.fechaAsignacion));
+
+      final assignment = assignments.first;
+      print('✅ [FIRESTORE] Rutina activa encontrada: ${assignment.rutinaNombre}');
+
+      // Verificar si ha expirado
+      if (assignment.isExpired) {
+        print('⚠️ [FIRESTORE] Rutina expirada, marcando...');
+        // Marcar como expirada en Firestore (en background)
+        _assignedRoutinesCollection.doc(assignment.id).update({
+          'estado': 'expirada',
+        });
+        return null;
+      }
+
+      return assignment;
+    });
+  }
+
+  /// Marcar rutina asignada como completada
+  Future<void> completeAssignedRoutine(String assignmentId) async {
+    await _assignedRoutinesCollection.doc(assignmentId).update({
+      'estado': 'completada',
+      'fechaCompletada': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Descartar/liberar rutina asignada (el cliente la rechaza)
+  /// Esto permite al usuario autoasignarse otra rutina o pedir una nueva al coach
+  Future<void> dismissAssignedRoutine(String assignmentId, String clienteId) async {
+    // Marcar la rutina como descartada
+    await _assignedRoutinesCollection.doc(assignmentId).update({
+      'estado': 'descartada',
+    });
+
+    // Limpiar el campo rutinaAsignadaId del cliente
+    await _usersCollection.doc(clienteId).update({
+      'rutinaAsignadaId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Limpiar rutinas asignadas expiradas (para mantenimiento)
+  Future<void> cleanupExpiredAssignedRoutines() async {
+    try {
+      final now = DateTime.now();
+
+      // Obtener todas las rutinas y filtrar en memoria para evitar índices
+      final allDocs = await _assignedRoutinesCollection
+          .limit(200)
+          .get();
+
+      if (allDocs.docs.isEmpty) return;
+
+      // Filtrar las que están activas pero expiradas
+      final expiredDocs = allDocs.docs.where((doc) {
+        final data = doc.data();
+        if (data['estado'] != 'activa') return false;
+        final fechaExpiracion = data['fechaExpiracion'] as Timestamp?;
+        if (fechaExpiracion == null) return false;
+        return fechaExpiracion.toDate().isBefore(now);
+      }).toList();
+
+      if (expiredDocs.isEmpty) return;
+
+      final batch = _firestore.batch();
+      for (final doc in expiredDocs) {
+        batch.update(doc.reference, {'estado': 'expirada'});
+      }
+      await batch.commit();
+    } catch (e) {
+      // Silently fail - cleanup is not critical
+    }
+  }
+
+  /// Eliminar rutinas asignadas antiguas (más de 7 días)
+  Future<void> deleteOldAssignedRoutines() async {
+    try {
+      final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
+      final cutoffTimestamp = Timestamp.fromDate(cutoffDate);
+
+      final oldDocs = await _assignedRoutinesCollection
+          .where('fechaAsignacion', isLessThan: cutoffTimestamp)
+          .limit(100)
+          .get();
+
+      if (oldDocs.docs.isEmpty) return;
+
+      final batch = _firestore.batch();
+      for (final doc in oldDocs.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (e) {
+      // Silently fail - cleanup is not critical
+    }
+  }
+
+  /// Obtener historial de rutinas asignadas del cliente
+  Stream<List<AssignedRoutineModel>> clientAssignedRoutinesHistory(String clienteId) {
+    return _assignedRoutinesCollection
+        .where('clienteId', isEqualTo: clienteId)
+        .orderBy('fechaAsignacion', descending: true)
+        .limit(20)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => AssignedRoutineModel.fromFirestore(doc))
+            .toList());
   }
 }

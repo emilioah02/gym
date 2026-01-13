@@ -1,6 +1,38 @@
 {
   "indexes": [
     {
+      "collectionGroup": "assigned_routines",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clienteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaAsignacion",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assigned_routines",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaExpiracion",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "announcements",
       "queryScope": "COLLECTION",
       "fields": [
@@ -11,6 +43,20 @@
         {
           "fieldPath": "fechaCreacion",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "client_notification_status",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clienteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "anuncioId",
+          "order": "ASCENDING"
         }
       ]
     },
@@ -53,9 +99,55 @@
         {
           "fieldPath": "leido",
           "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "entrenadorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "leido",
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tipo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "leido",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assigned_routines",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clienteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaAsignacion",
           "order": "DESCENDING"
         }
       ]
@@ -99,6 +191,34 @@
         {
           "fieldPath": "fechaPedido",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "store_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaPedido",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "store_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaEntregado",
+          "order": "ASCENDING"
         }
       ]
     },
