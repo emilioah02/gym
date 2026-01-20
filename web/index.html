@@ -63,11 +63,65 @@
 
   <!-- Service Worker para notificaciones push -->
   <script>
+    // Audio global para notificaciones (precargar)
+    let notificationAudio = null;
+    let audioUnlocked = false;
+
+    // Función para reproducir sonido de notificación
+    function playNotificationSound() {
+      if (!notificationAudio) {
+        notificationAudio = new Audio('/sounds/notification.mp3');
+        notificationAudio.volume = 1.0;
+      }
+
+      try {
+        notificationAudio.currentTime = 0;
+        notificationAudio.play().catch(e => {
+          console.log('Audio play blocked:', e);
+        });
+      } catch (e) {
+        console.log('Audio error:', e);
+      }
+
+      // Vibrar si está soportado
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200]);
+      }
+    }
+
+    // Desbloquear audio después de interacción del usuario
+    function unlockAudio() {
+      if (audioUnlocked) return;
+
+      notificationAudio = new Audio('/sounds/notification.mp3');
+      notificationAudio.volume = 0.01;
+      notificationAudio.play().then(() => {
+        notificationAudio.pause();
+        notificationAudio.currentTime = 0;
+        notificationAudio.volume = 1.0;
+        audioUnlocked = true;
+        console.log('🔊 Audio desbloqueado');
+      }).catch(() => {});
+    }
+
+    // Escuchar interacciones para desbloquear audio
+    ['click', 'touchstart', 'keydown'].forEach(event => {
+      document.addEventListener(event, unlockAudio, { once: true });
+    });
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/firebase-messaging-sw.js')
           .then((registration) => {
             console.log('✅ Service Worker registrado:', registration.scope);
+
+            // Escuchar mensajes del Service Worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              if (event.data && event.data.type === 'PLAY_NOTIFICATION_SOUND') {
+                console.log('🔔 Mensaje de SW recibido: reproducir sonido');
+                playNotificationSound();
+              }
+            });
           })
           .catch((error) => {
             console.error('❌ Error registrando Service Worker:', error);

@@ -61,18 +61,22 @@ service cloud.firestore {
 
       // CREACION: Usuario crea su propio perfil como cliente
       // Admins absolutos pueden crear cualquier usuario
+      // Entrenadores pueden crear su usuario de prueba (modo cliente)
       allow create: if isAuthenticated() && (
         (isOwner(userId) && request.resource.data.rol == 'cliente') ||
         (isOwner(userId) && isAbsoluteAdmin()) ||
-        isAbsoluteAdmin()
+        isAbsoluteAdmin() ||
+        (hasTrainerPermissions() && userId == (request.auth.uid + '_test_client') && request.resource.data.rol == 'cliente')
       );
 
       // ACTUALIZACION: Usuario actualiza su perfil (sin cambiar rol)
       // Entrenadores actualizan clientes, admins absolutos actualizan todo
+      // Entrenadores pueden actualizar su usuario de prueba (modo cliente)
       allow update: if isAuthenticated() && (
         (isOwner(userId) && request.resource.data.rol == resource.data.rol) ||
         (hasTrainerPermissions() && resource.data.rol == 'cliente') ||
-        isAbsoluteAdmin()
+        isAbsoluteAdmin() ||
+        (hasTrainerPermissions() && userId == (request.auth.uid + '_test_client'))
       );
 
       // ELIMINACION: Solo admins absolutos

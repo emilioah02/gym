@@ -61,14 +61,23 @@ class NotificationService {
       vibrate: vibrate,
     ));
 
-    // Vibrar el dispositivo
-    if (vibrate) {
-      await _vibrateDevice();
-    }
-
-    // Mostrar notificación del sistema (nativa)
-    if (showSystemNotification && kIsWeb) {
-      await web_notif.showWebNotification(title, body);
+    // En web, reproducir sonido y vibrar usando las funciones específicas de web
+    if (kIsWeb) {
+      if (playSound) {
+        await web_notif.playWebNotificationSound();
+      }
+      if (vibrate) {
+        web_notif.webVibrate();
+      }
+      // Mostrar notificación del sistema si está habilitado
+      if (showSystemNotification) {
+        await web_notif.showWebNotification(title, body);
+      }
+    } else {
+      // Vibrar el dispositivo (móvil)
+      if (vibrate) {
+        await _vibrateDevice();
+      }
     }
   }
 
@@ -101,6 +110,8 @@ class NotificationService {
       // Solicitar permisos en web
       if (kIsWeb) {
         await requestWebNotificationPermission();
+        // Inicializar el sistema de audio para web
+        web_notif.initWebAudio();
       } else {
         // Solicitar permisos en móvil
         await _requestMobilePermissions();

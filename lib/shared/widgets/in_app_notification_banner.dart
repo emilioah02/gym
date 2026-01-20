@@ -203,6 +203,7 @@ class _NotificationCard extends StatelessWidget {
     final tipo = notification.tipo;
     final isOrder = tipo == 'nuevo_pedido' || tipo == 'pedido_listo';
     final isRoutine = tipo == 'rutina_asignada' || tipo == 'rutina';
+    final isRoutineRequest = tipo == 'solicitud_rutina';
     final isHelp = tipo == 'ayuda_ejercicio';
     final isAnnouncement = tipo == 'anuncio' || tipo == 'oferta' || tipo == 'promocion' || tipo == 'aviso' || tipo == 'informacion';
 
@@ -214,6 +215,11 @@ class _NotificationCard extends StatelessWidget {
       accentColor = AppColors.success;
       icon = Icons.shopping_cart_rounded;
       gradientColors = [const Color(0xFF4CAF50), const Color(0xFF81C784)];
+    } else if (isRoutineRequest) {
+      // Solicitud de rutina de un cliente - color llamativo para el entrenador
+      accentColor = const Color(0xFFE91E63); // Pink
+      icon = Icons.fitness_center_rounded;
+      gradientColors = [const Color(0xFFE91E63), const Color(0xFFF48FB1)];
     } else if (isRoutine) {
       accentColor = AppColors.primary;
       icon = Icons.fitness_center_rounded;
