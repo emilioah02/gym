@@ -27,8 +27,8 @@ android {
         applicationId = "com.mexicanbulking.gym"
         minSdk = flutter.minSdkVersion  // Android 6.0 - Required for Google Sign-In and Firebase
         targetSdk = 35  // Android 15 - Latest stable
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
         multiDexEnabled = true
     }
 

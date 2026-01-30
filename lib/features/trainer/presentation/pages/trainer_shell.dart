@@ -38,9 +38,10 @@ class _TrainerShellState extends ConsumerState<TrainerShell> {
     final unreadCount =
         ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      child: ClipRRect(
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -112,6 +113,7 @@ class _TrainerShellState extends ConsumerState<TrainerShell> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

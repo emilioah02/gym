@@ -18,9 +18,11 @@ void main() async {
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Usar URLs limpias sin hash (#) para web
+    // Usar URLs limpias sin hash (#) solo para web
     // Esto permite URLs como mexican-bulking.web.app/privacy
-    usePathUrlStrategy();
+    if (kIsWeb) {
+      usePathUrlStrategy();
+    }
 
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -55,12 +57,21 @@ void main() async {
 
     // Inicializar servicio de notificaciones push sin bloquear el inicio
     // Se ejecuta en segundo plano para que la UI se muestre inmediatamente
-    NotificationService().initialize().catchError((e) {
-      debugPrint('⚠️ Error inicializando notificaciones: $e');
+    try {
+      NotificationService().initialize().catchError((e) {
+        debugPrint('⚠️ Error inicializando notificaciones: $e');
+        if (!kIsWeb) {
+          FirebaseCrashlytics.instance.recordError(e, StackTrace.current);
+        }
+        // No re-lanzar el error para evitar crashes
+        return Future.value();
+      });
+    } catch (e) {
+      debugPrint('⚠️ Error sincrónico inicializando notificaciones: $e');
       if (!kIsWeb) {
         FirebaseCrashlytics.instance.recordError(e, StackTrace.current);
       }
-    });
+    }
 
     runApp(const ProviderScope(child: MyApp()));
   }, (error, stack) {
